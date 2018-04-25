@@ -4,11 +4,64 @@ import string
 import sys
 import uuid
 import datetime
+import os
+import threading
+import numpy as np
+from dateutil import parser
+
+class deviceTimeChecker(object):
+
+    def __init__(self,name,interval):
+        self.name=name
+        self.interval=interval
+        self.lifetime=120
+
+    def check(self):
+        print("Device checker ",self.getName()," working...")
+        jsonData=open("configuration.json").read()
+        updateData = json.loads(jsonData)
+        for device in updateData["devices"]:
+            actualTime=self.generateTimestamp()
+            deviceTime= parser.parse(device["timeStamp"])
+            delta=actualTime-deviceTime
+            if delta.seconds > self.lifetime:
+                updateData["devices"].remove(device)
+                print("Device checker ",self.getName," deleted device with id: ",device["id"])
+                #update data
+                with open("configuration.json","w") as outfile:
+                    json.dump(updateData, outfile)
+                    outfile.close()
+        threading.Timer(self.getInterval(), self.check).start()
+
+    def generateTimestamp(self):
+         return datetime.datetime.now()
+
+    def getInterval(self):
+        return self.interval
+
+    def getName(self):
+        return self.name
 
 class HomeCatalog(object):
     exposed=True
-    devices=[]
-    users=[]
+    filePath="configuration.json"
+    initialContent={
+        "broker":{"ip":"","port":""},
+        "devices":[],
+        "users":[]
+    }
+
+    def __init__(self):
+        print("what")
+        if not os.path.exists(self.filePath):
+            with open("configuration.json","a+") as outfile:
+                json.dump(self.initialContent, outfile)
+                outfile.close()
+            print("created configuration.json")
+        print("Welcome!")
+        #start thread
+        deviceChecker = deviceTimeChecker("deviceChecker1",2)
+        deviceChecker.check()
 
     def GET(self,*uri):
 
@@ -16,43 +69,77 @@ class HomeCatalog(object):
             return json.dumps({"info":"Smart Home"})
         elif len(uri) == 1:
             if uri[0] == "broker":
-                res=MessageBroker().getInfo()
+                jsonData=open(self.filePath).read()
+                address = json.loads(jsonData)["broker"]
+                res=json.dumps(address)
                 return res
             elif uri[0] == "devices":
-                devices=[]
-                for device in self.devices:
-                    devices.append(device.getInfo())
-                return json.dumps({"devices":devices})
+                jsonData=open(self.filePath).read()
+                devices = json.loads(jsonData)["devices"]
+                res=json.dumps({"devices":devices})
+                return res
             elif uri[0] == "users":
-                users=[]
-                for user in self.users:
-                    users.append(user.getInfo())
-                return json.dumps({"users":users})
+                jsonData=open(self.filePath).read()
+                users = json.loads(jsonData)["users"]
+                res=json.dumps({"users":users})
+                return res
             else: return Msg("Invalid uri").error()
         else: return Msg("Invalid number of uris").error()
             
     def POST(self,*uri,**params):
         if len(uri) == 1:
             if uri[0] == "addDevice":
+                #read body
                 body=json.loads(cherrypy.request.body.read())
                 endpoint=body["endpoint"]
                 resources=body["resources"]
+                #create device
                 newDevice=Device(endpoint,resources)
-                self.devices.append(newDevice)
+                #read from config file
+                jsonData=open(self.filePath).read()
+                updateData = json.loads(jsonData)
+                updateData["devices"].append(newDevice.getInfo())
+                #update data
+                with open("configuration.json","w") as outfile:
+                    json.dump(updateData, outfile)
+                    outfile.close()
                 return Msg("Added new device "+newDevice.getId()).info()
+            if uri[0] == "addUser":
+                #read body
+                body=json.loads(cherrypy.request.body.read())
+                name=body["name"]
+                surname=body["surname"]
+                email=body["email"]
+                #create user
+                newUser=User(name,surname,email)
+                #read from config file
+                jsonData=open(self.filePath).read()
+                updateData = json.loads(jsonData)
+                updateData["users"].append(newUser.getInfo())
+                #update data
+                with open("configuration.json","w") as outfile:
+                    json.dump(updateData, outfile)
+                    outfile.close()
+                return Msg("Added new user "+newUser.getId()).info()
             if uri[0] == "device":
                 body=json.loads(cherrypy.request.body.read())
                 deviceId=body["id"]
-                for device in self.devices:
-                    if device.getId() == deviceId:
-                        return json.dumps(device.getInfo())
+                #read from config file
+                jsonData=open(self.filePath).read()
+                devices = json.loads(jsonData)["devices"]
+                for device in devices:
+                    if device["id"] == deviceId:
+                        return json.dumps(device)
                 return Msg("No device with id="+deviceId).error()
             if uri[0] == "user":
                 body=json.loads(cherrypy.request.body.read())
                 userId=body["id"]
-                for user in self.users:
-                    if user.getId() == userId:
-                        return json.dumps(user.getInfo())
+                #read from config file
+                jsonData=open(self.filePath).read()
+                users = json.loads(jsonData)["users"]
+                for user in users:
+                    if user["id"] == userId:
+                        return json.dumps(user)
                 return Msg("No user with id="+deviceId).error()
         else: return Msg("Invalid number of uris").error()
 
@@ -119,7 +206,7 @@ class Device(object):
         self.timestamp=self.generateTimestamp()
 
     def generateTimestamp(self):
-        return datetime.datetime.now().isoformat()
+        return str(datetime.datetime.now())
     def generateUniqueId(self):
         return str(uuid.uuid4())
     def getId(self):
@@ -134,7 +221,7 @@ class Device(object):
         return {"id":self.getId(),
                             "endPoints":self.getEndPoints(),
                             "resources":self.getResources(),
-                            "timestamp":self.generateTimestamp()}
+                            "timeStamp":self.generateTimestamp()}
 
 if __name__=='__main__':
     conf={
