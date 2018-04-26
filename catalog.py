@@ -9,6 +9,40 @@ import threading
 import numpy as np
 from dateutil import parser
 
+import paho.mqtt.client as PahoMQTT
+
+class MySubscriber:
+		def __init__(self, clientID):
+			self.clientID = clientID
+			# create an instance of paho.mqtt.client
+			self._paho_mqtt = PahoMQTT.Client(clientID, False) 
+
+			# register the callback
+			self._paho_mqtt.on_connect = self.myOnConnect
+			self._paho_mqtt.on_message = self.myOnMessageReceived
+
+			self.topic = '/this/is/my/topic'
+
+
+		def start (self):
+			#manage connection to broker
+			self._paho_mqtt.connect('iot.eclipse.org', 1883)
+			self._paho_mqtt.loop_start()
+			# subscribe for a topic
+			self._paho_mqtt.subscribe(self.topic, 2)
+
+		def stop (self):
+			self._paho_mqtt.unsubscribe(self.topic)
+			self._paho_mqtt.loop_stop()
+			self._paho_mqtt.disconnect()
+
+		def myOnConnect (self, paho_mqtt, userdata, flags, rc):
+			print ("Connected to message broker with result code: "+str(rc))
+
+		def myOnMessageReceived (self, paho_mqtt , userdata, msg):
+			# A new message is received
+			print ("Topic:'" + msg.topic+"', QoS: '"+str(msg.qos)+"' Message: '"+str(msg.payload) + "'")
+
 class deviceTimeChecker(object):
 
     def __init__(self,name,interval):
@@ -18,13 +52,16 @@ class deviceTimeChecker(object):
 
     def check(self):
         print("Device checker ",self.getName()," working...")
+        #read devices
         jsonData=open("configuration.json").read()
         updateData = json.loads(jsonData)
         for device in updateData["devices"]:
             actualTime=self.generateTimestamp()
             deviceTime= parser.parse(device["timeStamp"])
+            #check lifetime
             delta=actualTime-deviceTime
             if delta.seconds > self.lifetime:
+                #remove device
                 updateData["devices"].remove(device)
                 print("Device checker ",self.getName," deleted device with id: ",device["id"])
                 #update data
@@ -45,6 +82,7 @@ class deviceTimeChecker(object):
 class HomeCatalog(object):
     exposed=True
     filePath="configuration.json"
+    deviceCheckInterval=60
     initialContent={
         "broker":{"ip":"","port":""},
         "devices":[],
@@ -52,7 +90,6 @@ class HomeCatalog(object):
     }
 
     def __init__(self):
-        print("what")
         if not os.path.exists(self.filePath):
             with open("configuration.json","a+") as outfile:
                 json.dump(self.initialContent, outfile)
@@ -60,8 +97,11 @@ class HomeCatalog(object):
             print("created configuration.json")
         print("Welcome!")
         #start thread
-        deviceChecker = deviceTimeChecker("deviceChecker1",2)
+        deviceChecker = deviceTimeChecker("deviceChecker1",self.deviceCheckInterval)
         deviceChecker.check()
+        #MQTT subscriber
+        mqttSubscriber=MySubscriber("subscriber1")
+        mqttSubscriber.start()
 
     def GET(self,*uri):
 
