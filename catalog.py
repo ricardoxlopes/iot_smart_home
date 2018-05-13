@@ -2,89 +2,22 @@ import cherrypy
 import json
 import string
 import sys
-import uuid
 import datetime
 import os
-import threading
 import numpy as np
 from dateutil import parser
 
-import paho.mqtt.client as PahoMQTT
-
-class MySubscriber:
-		def __init__(self, clientID):
-			self.clientID = clientID
-			# create an instance of paho.mqtt.client
-			self._paho_mqtt = PahoMQTT.Client(clientID, False) 
-
-			# register the callback
-			self._paho_mqtt.on_connect = self.myOnConnect
-			self._paho_mqtt.on_message = self.myOnMessageReceived
-
-			self.topic = '/this/is/my/topic'
-
-
-		def start (self):
-			#manage connection to broker
-			self._paho_mqtt.connect('iot.eclipse.org', 1883)
-			self._paho_mqtt.loop_start()
-			# subscribe for a topic
-			self._paho_mqtt.subscribe(self.topic, 2)
-
-		def stop (self):
-			self._paho_mqtt.unsubscribe(self.topic)
-			self._paho_mqtt.loop_stop()
-			self._paho_mqtt.disconnect()
-
-		def myOnConnect (self, paho_mqtt, userdata, flags, rc):
-			print ("Connected to message broker with result code: "+str(rc))
-
-		def myOnMessageReceived (self, paho_mqtt , userdata, msg):
-			# A new message is received
-			print ("Topic:'" + msg.topic+"', QoS: '"+str(msg.qos)+"' Message: '"+str(msg.payload) + "'")
-
-class deviceTimeChecker(object):
-
-    def __init__(self,name,interval):
-        self.name=name
-        self.interval=interval
-        self.lifetime=120
-
-    def check(self):
-        print("Device checker ",self.getName()," working...")
-        #read devices
-        jsonData=open("configuration.json").read()
-        updateData = json.loads(jsonData)
-        for device in updateData["devices"]:
-            actualTime=self.generateTimestamp()
-            deviceTime= parser.parse(device["timeStamp"])
-            #check lifetime
-            delta=actualTime-deviceTime
-            if delta.seconds > self.lifetime:
-                #remove device
-                updateData["devices"].remove(device)
-                print("Device checker ",self.getName," deleted device with id: ",device["id"])
-                #update data
-                with open("configuration.json","w") as outfile:
-                    json.dump(updateData, outfile)
-                    outfile.close()
-        threading.Timer(self.getInterval(), self.check).start()
-
-    def generateTimestamp(self):
-         return datetime.datetime.now()
-
-    def getInterval(self):
-        return self.interval
-
-    def getName(self):
-        return self.name
+from subscriber import MySubscriber
+from deviceTimeChecker import DeviceTimeChecker
+from user import User
+from homeBot import MyBot
 
 class HomeCatalog(object):
     exposed=True
     filePath="configuration.json"
     deviceCheckInterval=60
     initialContent={
-        "broker":{"ip":"","port":""},
+        "broker":{"host":"iot.eclipse.org","port":1883},
         "devices":[],
         "users":[]
     }
@@ -94,14 +27,18 @@ class HomeCatalog(object):
             with open("configuration.json","a+") as outfile:
                 json.dump(self.initialContent, outfile)
                 outfile.close()
-            print("created configuration.json")
-        print("Welcome!")
+            print "created configuration.json"
+        print "Welcome!"
+
         #start thread
-        deviceChecker = deviceTimeChecker("deviceChecker1",self.deviceCheckInterval)
+        deviceChecker = DeviceTimeChecker("deviceChecker1",self.deviceCheckInterval)
         deviceChecker.check()
         #MQTT subscriber
         mqttSubscriber=MySubscriber("subscriber1")
         mqttSubscriber.start()
+        # #start telegram bot
+        # myBot=MyBot("localhost",8080)
+        # myBot.main()
 
     def GET(self,*uri):
 
@@ -213,30 +150,6 @@ class MessageBroker(object):
     def getInfo(self):
         return json.dumps({"ip":self.getAddress(),"port":self.getPort()})
 
-class User(object):
-
-    def __init__(self,name,surname,email):
-        self.id=self.generateUniqueId()
-        self.name=name
-        self.surname=surname
-        self.email=email
-    
-    def generateUniqueId(self):
-        return str(uuid.uuid4())
-    def getId(self):
-        return self.id
-    def getName(self):
-        return self.name
-    def getSurname(self):
-        return self.surname
-    def getEmail(self):
-        return self.email
-    def getInfo(self):
-        return {"id":self.getId(),
-                            "name":self.getName(),
-                            "surname":self.getSurname(),
-                            "email":self.getEmail()}
-
 class Device(object):
 
     def __init__(self,endPoints,resources):
@@ -266,11 +179,14 @@ class Device(object):
 if __name__=='__main__':
     conf={
         '/':{
-            'request.dispatch':cherrypy.dispatch.MethodDispatcher(),
+            'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
             'tools.sessions.on': True
         }
     }
 
     cherrypy.tree.mount(HomeCatalog(),'/',conf)
+    # cherrypy.config.update({'server.socket_host': '192.168.1.4'})
+    cherrypy.config.update({'server.socket_host': '192.168.1.4'})
+    cherrypy.config.update({'server.socket_port': 8080})
     cherrypy.engine.start()
     cherrypy.engine.block()

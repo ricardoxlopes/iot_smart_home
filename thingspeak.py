@@ -1,6 +1,5 @@
 #ThingSpeak
 from __future__ import print_function
-import paho.mqtt.publish as publish
 import psutil
 #dht11 sensor
 import RPi.GPIO as GPIO
@@ -8,88 +7,94 @@ import dht11
 import time
 import datetime
 
-###   Start of user configuration   ###   
+class SensorReader(object):
 
-#  ThingSpeak Channel Settings
-
-# The ThingSpeak Channel ID
-# Replace this with your Channel ID
-channelID = "483274"
-
-# The Write API Key for the channel
-# Replace this with your Write API key
-apiKey = "QHVO77NYFDPHMX2J"
-
-#  MQTT Connection Methods
-
-# Set useUnsecuredTCP to True to use the default MQTT port of 1883
-# This type of unsecured MQTT connection uses the least amount of system resources.
-useUnsecuredTCP = False
-
-# Set useUnsecuredWebSockets to True to use MQTT over an unsecured websocket on port 80.
-# Try this if port 1883 is blocked on your network.
-useUnsecuredWebsockets = False
-
-# Set useSSLWebsockets to True to use MQTT over a secure websocket on port 443.
-# This type of connection will use slightly more system resources, but the connection
-# will be secured by SSL.
-useSSLWebsockets = True
-
-###   End of user configuration   ###
-
-# The Hostname of the ThinSpeak MQTT service
-mqttHost = "mqtt.thingspeak.com"
-
-# Set up the connection parameters based on the connection type
-if useUnsecuredTCP:
-    tTransport = "tcp"
-    tPort = 1883
-    tTLS = None
-
-if useUnsecuredWebsockets:
-    tTransport = "websockets"
-    tPort = 80
-    tTLS = None
-
-if useSSLWebsockets:
-    import ssl
-    tTransport = "websockets"
-    tTLS = {'ca_certs':"/etc/ssl/certs/ca-certificates.crt",'tls_version':ssl.PROTOCOL_TLSv1}
-    tPort = 443
+    def __init(self):#,channelID,apiKey):
+        # self.channelID=channelID
+        # self.apiKey=apiKey
         
-# Create the topic string
-topic = "channels/" + channelID + "/publish/" + apiKey
+        ###   Start of user configuration   ###   
 
-# initialize GPIO
-GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BCM)
-GPIO.cleanup()
+        #  ThingSpeak Channel Settings
 
-# read data using pin 17
-instance = dht11.DHT11(pin=17)
+        # The ThingSpeak Channel ID
+        # Replace this with your Channel ID
+        channelID = "483274"
 
-while(True):
+        # The Write API Key for the channel
+        # Replace this with your Write API key
+        apiKey = "QHVO77NYFDPHMX2J"
 
-    result = instance.read()
-    if result.is_valid():
-        temperature=str(result.temperature)
-        humidity=str(result.humidity)
-        #print data
-        print("Last valid input: " + str(datetime.datetime.now()))
-        print("Temperature: ",temperature)
-        print("Humidity: ",humidity)
+        #  MQTT Connection Methods
 
-        # build the payload string
-        tPayload = "temperature=" + temperature + "&humidity=" + humidity
+        # Set useUnsecuredTCP to True to use the default MQTT port of 1883
+        # This type of unsecured MQTT connection uses the least amount of system resources.
+        useUnsecuredTCP = False
 
-        # attempt to publish this data to the topic 
-        try:
-            publish.single(topic, payload=tPayload, hostname=mqttHost, port=tPort, tls=tTLS, transport=tTransport)
+        # Set useUnsecuredWebSockets to True to use MQTT over an unsecured websocket on port 80.
+        # Try this if port 1883 is blocked on your network.
+        useUnsecuredWebsockets = False
 
-        except (KeyboardInterrupt):
-            break
+        # Set useSSLWebsockets to True to use MQTT over a secure websocket on port 443.
+        # This type of connection will use slightly more system resources, but the connection
+        # will be secured by SSL.
+        useSSLWebsockets = True
 
-        except:
-            print ("There was an error while publishing the data.")
-        
-        time.sleep(15)
+        ###   End of user configuration   ###
+
+        # The Hostname of the ThinSpeak MQTT service
+        mqttHost = "mqtt.thingspeak.com"
+
+        # Set up the connection parameters based on the connection type
+        if useUnsecuredTCP:
+            tTransport = "tcp"
+            tPort = 1883
+            tTLS = None
+
+        if useUnsecuredWebsockets:
+            tTransport = "websockets"
+            tPort = 80
+            tTLS = None
+
+        if useSSLWebsockets:
+            import ssl
+            tTransport = "websockets"
+            tTLS = {'ca_certs':"/etc/ssl/certs/ca-certificates.crt",'tls_version':ssl.PROTOCOL_TLSv1}
+            tPort = 443
+                
+        # Create the topic string
+        topic = "channels/" + channelID + "/publish/" + apiKey
+
+        # initialize GPIO
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BCM)
+        GPIO.cleanup()
+
+        # read data using pin 17
+        instance = dht11.DHT11(pin=17)
+
+        while(True):
+
+            result = instance.read()
+            if result.is_valid():
+                temperature=str(result.temperature)
+                humidity=str(result.humidity)
+                #print data
+                print("Last valid input: " + str(datetime.datetime.now()))
+                print("Temperature: ",temperature)
+                print("Humidity: ",humidity)
+
+                # build the payload string
+                tPayload = "field1=" + temperature + "&field2=" + humidity
+
+                # attempt to publish this data to the topic 
+                try:
+                    publish.single(topic, payload=tPayload, hostname=mqttHost, port=tPort, tls=tTLS, transport=tTransport)
+
+                except (KeyboardInterrupt):
+                    break
+
+                except:
+                    print ("There was an error while publishing the data.")
+                
+                time.sleep(15)
