@@ -2,6 +2,7 @@ import paho.mqtt.client as PahoMQTT
 import requests
 import json
 from thingspeak import SensorReader
+import cherrypy
 
 class MyPublisher:
 	def __init__(self, clientID):
@@ -29,31 +30,31 @@ class MyPublisher:
 		print ("Connected to message broker with result code: "+str(rc))
 
 class MyDevice(object):
-    exposed=True
-
-	def __init__(self,endpoit):
-		self.smartHomeEndpoint='http://localhost:8080/'
+	exposed=True
+	
+	def __init__(self,endpoint):
+		self.smartHomeEndpoint='http://192.168.1.4:8080/'
 		self.endpoint=endpoint
 		self.broker=self.getBroker
 		self.myDevice=self.registerDevice
 		res=json.dumps({"msg":"started"})
 		
-	def GET(self,*uri):
-		if len(uri) == 0:
-			return json.dumps({"info":"Raspberry device"})
-        elif len(uri) == 1:
-			if uri[0] == "startResource":
-				res=self.startResource
-                return res
-			selse: return Msg("Invalid uri").error()
-        else: return Msg("Invalid number of uris").error()
+	# def GET(self,*uri):
+	# 	if len(uri) == 0:
+	# 		return json.dumps({"info":"Raspberry device"})
+    #     elif len(uri) == 1:
+	# 		if uri[0] == "startResource":
+	# 			res=self.startResource
+	# 			return res
+	# 		selse: return Msg("Invalid uri").error()
+    #     else: return Msg("Invalid number of uris").error()
 	
 	def POST(self,*uri,**params):
 		if len(uri) == 1:
-            if uri[0] == "startResource":
+			if uri[0] == "startResource":
                 #read body
-                body=json.loads(cherrypy.request.body.read())
-                endpoint=body["resource"]
+				body=json.loads(cherrypy.request.body.read())
+				endpoint=body["resource"]
 				self.startResource(resource)
 
 	def getBroker(self):
@@ -62,10 +63,10 @@ class MyDevice(object):
 		return r.text
 	
 	def registerDevice(self):
-        user=json.dumps({"endpoint":self.add,"resources":["humidity_temperature_sensor"])
-        r=requests.post(self.smartHomeEndpoint+'addDevice',data = user)
-        update.message.reply_text("New device added! Your smart home said:")
-        update.message.reply_text(r.text)
+		user=json.dumps({"endpoint":self.add,"resources":["humidity_temperature_sensor"]})
+		r=requests.post(self.smartHomeEndpoint+'addDevice',data = user)
+		update.message.reply_text("New device added! Your smart home said:")
+		update.message.reply_text(r.text)
 		return r.text
 	
 	def startResource(self):
@@ -73,22 +74,22 @@ class MyDevice(object):
 		return json.dumps({"msg":"started"})
 
 if __name__=='__main__':
-	self.host='192.168.1.4'
-	self.port=8081
+	host='192.168.1.4'
+	port=8081
 
-    conf={
-        '/':{
-            'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
-            'tools.sessions.on': True
-        }
-    }
+	conf={
+		'/':{
+			'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
+			'tools.sessions.on': True
+		}
+	}
 
-    cherrypy.tree.mount(HomeCatalog("http://"+self.host+":"+str(self.port)+"/"),'/',conf)
-    # cherrypy.config.update({'server.socket_host': '192.168.1.4'})
-    cherrypy.config.update({'server.socket_host': self.host})
-    cherrypy.config.update({'server.socket_port': self.port})
-    cherrypy.engine.start()
-    cherrypy.engine.block()
+	cherrypy.tree.mount(MyDevice("http://"+host+":"+str(port)+"/"),'/',conf)
+	# cherrypy.config.update({'server.socket_host': '192.168.1.4'})
+	cherrypy.config.update({'server.socket_host': host})
+	cherrypy.config.update({'server.socket_port': port})
+	cherrypy.engine.start()
+	cherrypy.engine.block()
 
 	# send=json.dumps({"name":"name1","surname":"1","surname1":"email@email."})
 	# r= requests.post('http://localhost:8080/addUser',data = send )
