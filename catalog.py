@@ -186,7 +186,7 @@ if __name__=='__main__':
 
     cherrypy.tree.mount(HomeCatalog(),'/',conf)
     # cherrypy.config.update({'server.socket_host': '192.168.1.4'})
-    cherrypy.config.update({'server.socket_host': '192.168.1.4'})
+    cherrypy.config.update({'server.socket_host': '192.168.1.3'})
     cherrypy.config.update({'server.socket_port': 8080})
     cherrypy.engine.start()
     cherrypy.engine.block()

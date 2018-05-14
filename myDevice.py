@@ -33,21 +33,21 @@ class MyDevice(object):
 	exposed=True
 	
 	def __init__(self,endpoint):
-		self.smartHomeEndpoint='http://192.168.1.4:8080/'
+		self.smartHomeEndpoint='http://192.168.1.3:8080/'
 		self.endpoint=endpoint
 		self.broker=self.getBroker
 		self.myDevice=self.registerDevice
 		res=json.dumps({"msg":"started"})
 		
-	# def GET(self,*uri):
-	# 	if len(uri) == 0:
-	# 		return json.dumps({"info":"Raspberry device"})
-    #     elif len(uri) == 1:
-	# 		if uri[0] == "startResource":
-	# 			res=self.startResource
-	# 			return res
-	# 		selse: return Msg("Invalid uri").error()
-    #     else: return Msg("Invalid number of uris").error()
+	def GET(self,*uri):
+		if len(uri) == 0:
+			return json.dumps({"info":"Raspberry device"})
+        elif len(uri) == 1:
+			if uri[0] == "startResource":
+				res=self.startResource
+				return res
+			selse: return Msg("Invalid uri").error()
+        else: return Msg("Invalid number of uris").error()
 	
 	def POST(self,*uri,**params):
 		if len(uri) == 1:
