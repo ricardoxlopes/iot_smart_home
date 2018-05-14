@@ -42,13 +42,13 @@ class MyDevice(object):
 	def GET(self,*uri):
 		if len(uri) == 0:
 			return json.dumps({"info":"Raspberry device"})
-        elif len(uri) == 1:
+		elif len(uri) == 1:
 			if uri[0] == "startResource":
 				res=self.startResource
 				return res
-			selse: return Msg("Invalid uri").error()
-        else: return Msg("Invalid number of uris").error()
-	
+			else: return Msg("Invalid uri").error()
+		else: return Msg("Invalid number of uris").error()
+
 	def POST(self,*uri,**params):
 		if len(uri) == 1:
 			if uri[0] == "startResource":
@@ -75,7 +75,7 @@ class MyDevice(object):
 
 if __name__=='__main__':
 	host='192.168.1.4'
-	port=8081
+	port=8080
 
 	conf={
 		'/':{

@@ -157,7 +157,7 @@ class MyBot(object):
         update.message.reply_text("New device added! Your smart home said:")
         update.message.reply_text(r.text)
     
-    def start(self,bot,update):
+    def startDevice(self,bot,update):
         user=json.dumps({"endpoint":args[0],"resources":args[1]})
         r=requests.post(self.address+'addDevice',data = user)
 
@@ -247,7 +247,7 @@ class MyBot(object):
         updater.idle()
 
 if __name__ == '__main__':
-    address='192.168.1.4'
+    address='192.168.1.3'
     port=8080
     bot=MyBot(address,port)
     bot.main()
