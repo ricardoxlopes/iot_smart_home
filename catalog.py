@@ -10,12 +10,13 @@ from dateutil import parser
 from subscriber import MySubscriber
 from deviceTimeChecker import DeviceTimeChecker
 from user import User
-from homeBot import MyBot
+# from homeBot import MyBot
 
 class HomeCatalog(object):
     exposed=True
+
     filePath="configuration.json"
-    deviceCheckInterval=60
+    deviceCheckInterval=2000
     initialContent={
         "broker":{"host":"iot.eclipse.org","port":1883},
         "devices":[],
@@ -28,11 +29,11 @@ class HomeCatalog(object):
                 json.dump(self.initialContent, outfile)
                 outfile.close()
             print "created configuration.json"
-        print "Welcome!"
 
+        print "Welcome!"
         #start thread
-        deviceChecker = DeviceTimeChecker("deviceChecker1",self.deviceCheckInterval)
-        deviceChecker.check()
+        # deviceChecker = DeviceTimeChecker("deviceChecker1",self.deviceCheckInterval)
+        # deviceChecker.check()
         #MQTT subscriber
         mqttSubscriber=MySubscriber("subscriber1")
         mqttSubscriber.start()
@@ -187,6 +188,6 @@ if __name__=='__main__':
     cherrypy.tree.mount(HomeCatalog(),'/',conf)
     # cherrypy.config.update({'server.socket_host': '192.168.1.4'})
     cherrypy.config.update({'server.socket_host': '192.168.1.3'})
-    cherrypy.config.update({'server.socket_port': 8080})
+    cherrypy.config.update({'server.socket_port': 8081})
     cherrypy.engine.start()
     cherrypy.engine.block()

@@ -35,8 +35,8 @@ class MyDevice(object):
 	def __init__(self,endpoint):
 		self.smartHomeEndpoint='http://192.168.1.3:8080/'
 		self.endpoint=endpoint
-		self.broker=self.getBroker
-		self.myDevice=self.registerDevice
+		self.broker=self.getBroker()
+		self.myDevice=self.registerDevice()
 		res=json.dumps({"msg":"started"})
 		
 	def GET(self,*uri):
@@ -54,19 +54,20 @@ class MyDevice(object):
 			if uri[0] == "startResource":
                 #read body
 				body=json.loads(cherrypy.request.body.read())
-				endpoint=body["resource"]
+				resource=body["resource"]
 				self.startResource(resource)
 
 	def getBroker(self):
-		r = requests.get(endpoint+'broker')
+		r = requests.get(self.smartHomeEndpoint+'broker')
 		print r.text
 		return r.text
 	
 	def registerDevice(self):
 		user=json.dumps({"endpoint":self.add,"resources":["humidity_temperature_sensor"]})
 		r=requests.post(self.smartHomeEndpoint+'addDevice',data = user)
-		update.message.reply_text("New device added! Your smart home said:")
-		update.message.reply_text(r.text)
+		# update.message.reply_text("New device added! Your smart home said:")
+		# update.message.reply_text(r.text)
+		print r.text
 		return r.text
 	
 	def startResource(self):

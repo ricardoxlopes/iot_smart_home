@@ -32,6 +32,7 @@ class MyBot(object):
 
     def __init__(self,address,port):
         self.address='http://'+address+':'+str(port)+'/'
+        print self.address
 
         # Enable logging
         logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -248,6 +249,17 @@ class MyBot(object):
 
 if __name__ == '__main__':
     address='192.168.1.3'
-    port=8080
+    port=8081
     bot=MyBot(address,port)
     bot.main()
+
+
+
+"""
+info - Webservice info
+user - Command: /user name surname email | Ex: /user name1 surname1 email1
+device - Command: /device endpoint resources | Ex: /device localhost 8080 ["humidity"]
+users - Get list of users
+devices - Get list of devices
+
+"""
