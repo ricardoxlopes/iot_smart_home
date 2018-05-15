@@ -33,7 +33,7 @@ class MyDevice(object):
 	exposed=True
 	
 	def __init__(self,endpoint):
-		self.smartHomeEndpoint='http://192.168.1.3:8080/'
+		self.smartHomeEndpoint='http://192.168.1.2:8080/'
 		self.endpoint=endpoint
 		self.broker=self.getBroker()
 		self.myDevice=self.registerDevice()
@@ -44,7 +44,7 @@ class MyDevice(object):
 			return json.dumps({"info":"Raspberry device"})
 		elif len(uri) == 1:
 			if uri[0] == "startResource":
-				res=self.startResource
+				res=self.startResource()
 				return res
 			else: return Msg("Invalid uri").error()
 		else: return Msg("Invalid number of uris").error()

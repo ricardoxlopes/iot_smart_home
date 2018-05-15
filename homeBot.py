@@ -248,8 +248,8 @@ class MyBot(object):
         updater.idle()
 
 if __name__ == '__main__':
-    address='192.168.1.3'
-    port=8081
+    address='192.168.1.2'
+    port=8080
     bot=MyBot(address,port)
     bot.main()
 

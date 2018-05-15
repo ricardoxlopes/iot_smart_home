@@ -97,4 +97,4 @@ class SensorReader(object):
                 except:
                     print ("There was an error while publishing the data.")
                 
-                time.sleep(15)
+                time.sleep(30)
