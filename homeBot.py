@@ -159,8 +159,10 @@ class MyBot(object):
         update.message.reply_text(r.text)
     
     def startDevice(self,bot,update):
-        user=json.dumps({"endpoint":args[0],"resources":args[1]})
-        r=requests.post(self.address+'addDevice',data = user)
+        # user=json.dumps({"endpoint":args[0],"resources":args[1]})
+        # r=requests.post(self.address+'startResource',data = user)
+        r=requests.get('http://192.168.1.4:8080/startResource')
+        update.message.reply_text(r.text)
 
     # def handleNewUser(self,bot,update,user_data):
 

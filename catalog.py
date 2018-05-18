@@ -6,6 +6,7 @@ import datetime
 import os
 import numpy as np
 from dateutil import parser
+import uuid
 
 from subscriber import MySubscriber
 from deviceTimeChecker import DeviceTimeChecker

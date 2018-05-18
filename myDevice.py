@@ -63,7 +63,7 @@ class MyDevice(object):
 		return r.text
 	
 	def registerDevice(self):
-		user=json.dumps({"endpoint":self.add,"resources":["humidity_temperature_sensor"]})
+		user=json.dumps({"endpoint":self.endpoint,"resources":["humidity_temperature_sensor"]})
 		r=requests.post(self.smartHomeEndpoint+'addDevice',data = user)
 		# update.message.reply_text("New device added! Your smart home said:")
 		# update.message.reply_text(r.text)

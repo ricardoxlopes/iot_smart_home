@@ -6,13 +6,15 @@ import RPi.GPIO as GPIO
 import dht11
 import time
 import datetime
+import requests
+import paho.mqtt.publish as publish
 
 class SensorReader(object):
 
-    def __init(self):#,channelID,apiKey):
+    def __init__(self):#,channelID,apiKey):
         # self.channelID=channelID
         # self.apiKey=apiKey
-        
+        # print "init"
         ###   Start of user configuration   ###   
 
         #  ThingSpeak Channel Settings
@@ -33,12 +35,12 @@ class SensorReader(object):
 
         # Set useUnsecuredWebSockets to True to use MQTT over an unsecured websocket on port 80.
         # Try this if port 1883 is blocked on your network.
-        useUnsecuredWebsockets = False
+        useUnsecuredWebsockets = True
 
         # Set useSSLWebsockets to True to use MQTT over a secure websocket on port 443.
         # This type of connection will use slightly more system resources, but the connection
         # will be secured by SSL.
-        useSSLWebsockets = True
+        useSSLWebsockets = False
 
         ###   End of user configuration   ###
 
@@ -90,11 +92,15 @@ class SensorReader(object):
                 # attempt to publish this data to the topic 
                 try:
                     publish.single(topic, payload=tPayload, hostname=mqttHost, port=tPort, tls=tTLS, transport=tTransport)
-
+                    # r=requests.get("https://api.thingspeak.com/update?api_key=QHVO77NYFDPHMX2J&field1=0")
                 except (KeyboardInterrupt):
                     break
 
                 except:
                     print ("There was an error while publishing the data.")
                 
-                time.sleep(30)
+                time.sleep(60)
+
+
+if __name__=='__main__':
+    novo=SensorReader()
