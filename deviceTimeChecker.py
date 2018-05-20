@@ -2,11 +2,13 @@ import json
 import threading
 
 class DeviceTimeChecker(object):
+    """Device lifetime checker"""
 
     def __init__(self,name,interval):
         self.name=name
         self.interval=interval
-        self.lifetime=120
+        #device lifetime checker
+        self.lifetime=180
 
     def check(self):
         print "Device checker ",self.getName()," working..."
@@ -15,7 +17,7 @@ class DeviceTimeChecker(object):
         updateData = json.loads(jsonData)
         for device in updateData["devices"]:
             actualTime=self.generateTimestamp()
-            deviceTime= parser.parse(device["timeStamp"])
+            deviceTime=parser.parse(device["timeStamp"])
             #check lifetime
             delta=actualTime-deviceTime
             if delta.seconds > self.lifetime:
@@ -26,6 +28,7 @@ class DeviceTimeChecker(object):
                 with open("configuration.json","w") as outfile:
                     json.dump(updateData, outfile)
                     outfile.close()
+        #launch new thread
         threading.Timer(self.getInterval(), self.check).start()
 
     def generateTimestamp(self):

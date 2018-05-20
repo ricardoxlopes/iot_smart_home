@@ -4,6 +4,7 @@ import psutil
 #dht11 sensor
 import RPi.GPIO as GPIO
 import dht11
+#others
 import time
 import datetime
 import requests
@@ -11,22 +12,9 @@ import paho.mqtt.publish as publish
 
 class SensorReader(object):
 
-    def __init__(self):#,channelID,apiKey):
-        # self.channelID=channelID
-        # self.apiKey=apiKey
+    def __init__(self,channelID,apiKey):
         # print "init"
         ###   Start of user configuration   ###   
-
-        #  ThingSpeak Channel Settings
-
-        # The ThingSpeak Channel ID
-        # Replace this with your Channel ID
-        channelID = "483274"
-
-        # The Write API Key for the channel
-        # Replace this with your Write API key
-        apiKey = "QHVO77NYFDPHMX2J"
-
         #  MQTT Connection Methods
 
         # Set useUnsecuredTCP to True to use the default MQTT port of 1883
@@ -66,7 +54,6 @@ class SensorReader(object):
                 
         # Create the topic string
         topic = "channels/" + channelID + "/publish/" + apiKey
-
         # initialize GPIO
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
@@ -91,16 +78,24 @@ class SensorReader(object):
 
                 # attempt to publish this data to the topic 
                 try:
-                    publish.single(topic, payload=tPayload, hostname=mqttHost, port=tPort, tls=tTLS, transport=tTransport)
-                    # r=requests.get("https://api.thingspeak.com/update?api_key=QHVO77NYFDPHMX2J&field1=0")
+                    # a=publish.single(topic, payload=tPayload, hostname=mqttHost, port=tPort, tls=tTLS, transport=tTransport)
+                    # print(a)
+                    r=requests.get("https://api.thingspeak.com/update?api_key=QHVO77NYFDPHMX2J&field1=500")
+                    # r=requests.get("https://api.thingspeak.com/update?api_key=QHVO77NYFDPHMX2J&field2="+humidity)
                 except (KeyboardInterrupt):
                     break
-
-                except:
-                    print ("There was an error while publishing the data.")
-                
-                time.sleep(60)
-
+                except requests.exceptions.RequestException as e:
+                    print(e)
+                else: 
+                    time.sleep(5)
 
 if __name__=='__main__':
-    novo=SensorReader()
+    # The ThingSpeak Channel ID
+    # Replace this with your Channel ID
+    channelID = "483274"
+
+    # The Write API Key for the channel
+    # Replace this with your Write API key
+    apiKey = "QHVO77NYFDPHMX2J"
+
+    newSensor=SensorReader(channelID,apiKey)

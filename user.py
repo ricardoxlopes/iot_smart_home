@@ -1,8 +1,9 @@
-
 import uuid
 import string
 
 class User(object):
+    "User class. Name, surname and email are mandatory"
+
     def __init__(self,name,surname,email):
         self.id=self.generateUniqueId()
         self.name=name

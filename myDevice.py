@@ -1,12 +1,27 @@
 import paho.mqtt.client as PahoMQTT
 import requests
 import json
-from thingspeak import SensorReader
+from sensorReader import SensorReader
 import cherrypy
+import socket
+from message import Msg
+
+"""
+
+Modular device, can be modified to be reused.
+To be set 3 options: [host port,catalog endpoint, available resources]
+Has a MQTT publisher to send messages
+Handles and makes REST requests
+Initialy it registers to the catalog
+
+"""
 
 class MyPublisher:
-	def __init__(self, clientID):
+	def __init__(self, clientID,host,port,topic):
 		self.clientID = clientID
+		self.host=host
+		self.port=port
+		self.topic=topic
 
 		# create an instance of paho.mqtt.client
 		self._paho_mqtt = PahoMQTT.Client(self.clientID, False) 
@@ -15,7 +30,7 @@ class MyPublisher:
 
 	def start (self):
 		#manage connection to broker
-		self._paho_mqtt.connect('iot.eclipse.org', 1883)
+		self._paho_mqtt.connect(host,port) #'iot.eclipse.org', 1883)
 		self._paho_mqtt.loop_start()
 
 	def stop (self):
@@ -32,70 +47,86 @@ class MyPublisher:
 class MyDevice(object):
 	exposed=True
 	
-	def __init__(self,endpoint):
-		self.smartHomeEndpoint='http://192.168.1.2:8080/'
+	def __init__(self,endpoint,catalogEndpoint,resources):
+		print "Init device"
 		self.endpoint=endpoint
+		self.catalogEndpoint=catalogEndpoint
+		self.resources=resources
 		self.broker=self.getBroker()
 		self.myDevice=self.registerDevice()
-		res=json.dumps({"msg":"started"})
 		
-	def GET(self,*uri):
+	def GET(self,*uri,**params):
 		if len(uri) == 0:
-			return json.dumps({"info":"Raspberry device"})
+			return Msg("Raspberry device").info()
 		elif len(uri) == 1:
-			if uri[0] == "startResource":
-				res=self.startResource()
-				return res
-			else: return Msg("Invalid uri").error()
+			if uri[0] == "resource":
+				if params["id"] in self.resources:
+					if "info" in self.myDevice:
+						res=self.startResource()
+						return res
+					else: Msg("Not registered").error()
+				else: Msg("Resource not available").error()
 		else: return Msg("Invalid number of uris").error()
 
-	def POST(self,*uri,**params):
-		if len(uri) == 1:
-			if uri[0] == "startResource":
-                #read body
-				body=json.loads(cherrypy.request.body.read())
-				resource=body["resource"]
-				self.startResource(resource)
-
 	def getBroker(self):
-		r = requests.get(self.smartHomeEndpoint+'broker')
-		print r.text
-		return r.text
-	
+		try:
+			print self.catalogEndpoint+'/broker'
+			r = requests.get(self.catalogEndpoint+'/broker')
+		except requests.exceptions.RequestException as e:
+			error=Msg("Unable to get broket").error()
+			print e
+			print error
+			return error
+		else:
+			print "Requested broker, received: "+r.text
+			return r.text
+
 	def registerDevice(self):
-		user=json.dumps({"endpoint":self.endpoint,"resources":["humidity_temperature_sensor"]})
-		r=requests.post(self.smartHomeEndpoint+'addDevice',data = user)
-		# update.message.reply_text("New device added! Your smart home said:")
-		# update.message.reply_text(r.text)
-		print r.text
-		return r.text
+		print "Registering device..."
+		user=json.dumps({"endpoint":self.endpoint,"resources":self.resources})
+		try:
+			r=requests.post(self.catalogEndpoint+'/addDevice',data = user)
+		except requests.exceptions.RequestException as e:
+			error=Msg("unable to register").error()
+			print e
+			print error
+			return error
+		else:
+			info=json.loads(r.text)["info"]
+			deviceId=info["id"]
+			return Msg({"id":deviceId}).info()
 	
-	def startResource(self):
-		mySensor=SensorReader()
-		return json.dumps({"msg":"started"})
+	def startResource(self,resourceId):
+		"Possible to add new handlers for new resources such as sensors"
+		if resourceId == "humidity_temperature_sensor":
+			mySensor=SensorReader()
+			return Msg("Resource started").info()
+		elif resourceId == "anotherResource":
+			print "add handler"
+		else: Msg("Resource not available").error()
 
 if __name__=='__main__':
-	host='192.168.1.4'
-	port=8080
-
+	#My Device settings
+	host = "192.168.1.4"
+	port = 8080
+	endpoint="http://"+host+":"+str(port)+"/"
+	resources=["humidity_temperature_sensor"]
+	#Catalog endpoint
+	catalogEndpoint="http://192.168.1.5:8080"
 	conf={
 		'/':{
 			'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
 			'tools.sessions.on': True
 		}
 	}
-
-	cherrypy.tree.mount(MyDevice("http://"+host+":"+str(port)+"/"),'/',conf)
-	# cherrypy.config.update({'server.socket_host': '192.168.1.4'})
+	cherrypy.tree.mount(MyDevice(endpoint,catalogEndpoint,resources),'/',conf)
 	cherrypy.config.update({'server.socket_host': host})
 	cherrypy.config.update({'server.socket_port': port})
 	cherrypy.engine.start()
 	cherrypy.engine.block()
 
-	# send=json.dumps({"name":"name1","surname":"1","surname1":"email@email."})
-	# r= requests.post('http://localhost:8080/addUser',data = send )
-	# print(r.text)
-    
+	#TODO read broker info and start sending messages
+
 	# publisher=MyPublisher("publisher1")
     # publisher.start()
     # iterator=0

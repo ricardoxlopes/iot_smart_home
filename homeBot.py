@@ -1,38 +1,39 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Simple Bot to reply to Telegram messages
-# This program is dedicated to the public domain under the CC0 license.
 """
 This Bot uses the Updater class to handle the bot.
 
-First, a few callback functions are defined. Then, those functions are passed to
-the Dispatcher and registered at their respective places.
-Then, the bot is started and runs until we press Ctrl-C on the command line.
-
-Usage:
-Example of a bot-user conversation using ConversationHandler.
-Send /start to initiate the conversation.
 Press Ctrl-C on the command line or send a signal to the process to stop the
 bot.
 """
-
 from telegram import ReplyKeyboardMarkup
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, RegexHandler,
                           ConversationHandler)
 
 from user import User
-
+from message import Msg
 import logging
 import string
 import requests
 import json
 
 class MyBot(object):
+    """
+        COMMAND LIST:
 
-    def __init__(self,address,port):
-        self.address='http://'+address+':'+str(port)+'/'
-        print self.address
+        info - Webservice info
+        user - Command: /user name surname email | Ex: /user name1 surname1 email1 | Add new user
+        device - Command: /device host port resources | Ex: /device localhost 8080 ["humidity"] | Add new device
+        resource - Command: /resource device_id | Ex: /resouce 11-12-33-33 | Start device's resource
+        users - Get list of users
+        devices - Get list of devices
+        resources - Command: /resources id | Ex: /resouces 11-12-33-33 | Get list of resources for a device
+
+    """
+    def __init__(self, address, port):
+        print "Bot started..."
+        self.address = 'http://'+address+':'+str(port)
 
         # Enable logging
         logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -40,22 +41,22 @@ class MyBot(object):
 
         logger = logging.getLogger(__name__)
 
-        self.CHOOSING, self.TYPING_REPLY, self.TYPING_CHOICE, self.ADD_USER = range(4)
+        self.CHOOSING, self.TYPING_REPLY, self.TYPING_CHOICE, self.ADD_USER = range(
+            4)
 
-        self.reply_keyboard = [['Add user', 'List users','Add device','List devices'],
-                        ['Done']]
+        self.reply_keyboard = [['Add user', 'List users', 'Add device', 'List devices'],
+                               ['Done']]
 
-        self.markup = ReplyKeyboardMarkup(self.reply_keyboard, one_time_keyboard=True)
+        self.markup = ReplyKeyboardMarkup(
+            self.reply_keyboard, one_time_keyboard=True)
 
+    # def facts_to_str(self, user_data):
+    #     facts = list()
 
-    def facts_to_str(self,user_data):
-        facts = list()
+    #     for key, value in user_data.items():
+    #         facts.append('{} - {}'.format(key, value))
 
-        for key, value in user_data.items():
-            facts.append('{} - {}'.format(key, value))
-
-        return "\n".join(facts).join(['\n', '\n'])
-
+    #     return "\n".join(facts).join(['\n', '\n'])
 
     # def start(self,bot, update):
     #     update.message.reply_text(
@@ -64,15 +65,14 @@ class MyBot(object):
 
     #     return self.CHOOSING
 
+    # def regular_choice(self, bot, update, user_data):
+    #     text = update.message.text
+    #     user_data['choice'] = text
+    #     print user_data['choice']
+    #     update.message.reply_text(
+    #         'Let\'s {}!'.format(text.lower()))
 
-    def regular_choice(self,bot, update, user_data):
-        text = update.message.text
-        user_data['choice'] = text
-        print user_data['choice']
-        update.message.reply_text(
-            'Let\'s {}!'.format(text.lower()))
-        
-        return self.ADD_USER
+    #     return self.ADD_USER
         # if user_data['choice'] == "Add user":
         #     del user_data['choice']
 
@@ -83,7 +83,7 @@ class MyBot(object):
         #     update.message.reply_text('What is your name?')
         #     text = update.message.text
         #     user_data['name']= text
-            
+
         #     update.message.reply_text('What is your surname?')
         #     text = update.message.text
         #     user_data['surname']= text
@@ -92,7 +92,7 @@ class MyBot(object):
         #     text = update.message.text
         #     user_data['email']= text
         #     print(user_data['name'],user_data['email'])
-            
+
         #     user=User("a","b","c")
 
         #     self.newUser(user)
@@ -105,64 +105,104 @@ class MyBot(object):
 
     #     return self.TYPING_CHOICE
 
+    # def received_information(self, bot, update, user_data):
+    #     text = update.message.text
+    #     category = user_data['choice']
+    #     user_data[category] = text
+    #     del user_data['choice']
 
-    def received_information(self,bot, update, user_data):
-        text = update.message.text
-        category = user_data['choice']
-        user_data[category] = text
-        del user_data['choice']
+    #     update.message.reply_text("Neat! Just so you know, this is what you already told me:"
+    #                               "{}"
+    #                               "You can tell me more, or change your opinion on something.".format(
+    #                                   facts_to_str(user_data)), reply_markup=self.markup)
 
-        update.message.reply_text("Neat! Just so you know, this is what you already told me:"
-                                "{}"
-                                "You can tell me more, or change your opinion on something.".format(
-                                    facts_to_str(user_data)), reply_markup=self.markup)
+    #     return self.CHOOSING
 
-        return self.CHOOSING
+    # def done(self, bot, update, user_data):
+    #     if 'choice' in user_data:
+    #         del user_data['choice']
 
-    def done(self,bot, update, user_data):
-        if 'choice' in user_data:
-            del user_data['choice']
+    #     update.message.reply_text("I learned these facts about you:"
+    #                               "{}"
+    #                               "Until next time!".format(facts_to_str(user_data)))
 
-        update.message.reply_text("I learned these facts about you:"
-                                "{}"
-                                "Until next time!".format(facts_to_str(user_data)))
+    #     user_data.clear()
+    #     return ConversationHandler.END
 
-        user_data.clear()
-        return ConversationHandler.END
-
-    def error(self,bot, update, error):
+    def error(self, bot, update, error):
         """Log Errors caused by Updates."""
         logger.warning('Update "%s" caused error "%s"', update, error)
 
-    def getInfo(self,bot, update):
-        r=requests.get(self.address)
-        update.message.reply_text(r.text)
+    def getInfo(self, bot, update):
+        try:
+            r = requests.get(self.address)
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to get info").error()
+            print e
+            print error
+        else: 
+            update.message.reply_text(r.text)
 
-    def getUsers(self,bot, update):
-        r=requests.get(self.address+'users')
-        update.message.reply_text(r.text)
+    def getUsers(self, bot, update):
+        try:
+            r = requests.get(self.address+'/users')
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to get users").error()
+            print e
+            print error
+        else: update.message.reply_text(r.text)
 
-    def getDevices(self,bot, update):
-        r=requests.get(self.address+'devices')
-        update.message.reply_text(r.text)
+    def getDevices(self, bot, update):
+        try:
+            r = requests.get(self.address+'/devices')
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to get devices").error()
+            print e
+            print error
+        else: update.message.reply_text(r.text)
 
-    def newUser(self,bot,update,args):
-        user=json.dumps({"name":args[0],"surname":args[1],"email":args[2]})
-        r=requests.post(self.address+'addUser',data = user)
-        update.message.reply_text("New user added! Your smart home said:")
-        update.message.reply_text(r.text)
+    def getResources(self, bot, update):
+        try:
+            r = requests.get(self.address+'/resources')
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to get resources").error()
+            print e
+            print error
+        else: update.message.reply_text(r.text)
 
-    def newDevice(self,bot,update,args):
-        user=json.dumps({"endpoint":args[0],"resources":args[1]})
-        r=requests.post(self.address+'addDevice',data = user)
-        update.message.reply_text("New device added! Your smart home said:")
-        update.message.reply_text(r.text)
-    
-    def startDevice(self,bot,update):
-        # user=json.dumps({"endpoint":args[0],"resources":args[1]})
-        # r=requests.post(self.address+'startResource',data = user)
-        r=requests.get('http://192.168.1.4:8080/startResource')
-        update.message.reply_text(r.text)
+    def newUser(self, bot, update, args):
+        user = json.dumps(
+            {"name": args[0], "surname": args[1], "email": args[2]})
+        try:
+            r = requests.post(self.address+'/addUser', data=user)
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to create new user").error()
+            print e
+            print error
+        else:
+            update.message.reply_text("New user added! Your smart home said:")
+            update.message.reply_text(r.text)
+
+    def newDevice(self, bot, update, args):
+        user = json.dumps({"endpoint": args[0], "resources": args[1]})
+        try:
+            r = requests.post(self.address+'/addDevice', data=user)
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to create new device").error()
+            print e
+            print error
+        else:
+            update.message.reply_text("New device added! Your smart home said:")
+            update.message.reply_text(r.text)
+
+    def startResource(self, bot, update,args):
+        try:
+            r = requests.get(self.address+'/resource',args[0])
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to start resource").error()
+            print e
+            print error
+        else: update.message.reply_text(r.text)
 
     # def handleNewUser(self,bot,update,user_data):
 
@@ -228,19 +268,19 @@ class MyBot(object):
         # )
 
         # dp.add_handler(conv_handler)
-        dp.add_handler(CommandHandler("info", self.getInfo))
-        dp.add_handler(CommandHandler("user", self.newUser,
-                                  pass_args=True))
-        dp.add_handler(CommandHandler("users", self.getUsers))
-        dp.add_handler(CommandHandler("device", self.newDevice,
-                                  pass_args=True))
-        dp.add_handler(CommandHandler("devices", self.getDevices))
 
-        dp.add_handler(CommandHandler("start", self.startDevice))
-        
+        dp.add_handler(CommandHandler("info", self.getInfo))
+        dp.add_handler(CommandHandler("users", self.getUsers))
+        dp.add_handler(CommandHandler("devices", self.getDevices))
+        dp.add_handler(CommandHandler("resources", self.getResources))
+
+        dp.add_handler(CommandHandler("resource", self.startResource,pass_args=True))
+        dp.add_handler(CommandHandler("user", self.newUser,pass_args=True))
+        dp.add_handler(CommandHandler("device", self.newDevice,pass_args=True))
+
         # log all errors
         dp.add_error_handler(self.error)
-        
+
         # Start the Bot
         updater.start_polling()
 
@@ -250,18 +290,7 @@ class MyBot(object):
         updater.idle()
 
 if __name__ == '__main__':
-    address='192.168.1.2'
-    port=8080
-    bot=MyBot(address,port)
+    address = '192.168.1.5'
+    port = 8080
+    bot = MyBot(address, port)
     bot.main()
-
-
-
-"""
-info - Webservice info
-user - Command: /user name surname email | Ex: /user name1 surname1 email1
-device - Command: /device endpoint resources | Ex: /device localhost 8080 ["humidity"]
-users - Get list of users
-devices - Get list of devices
-
-"""
