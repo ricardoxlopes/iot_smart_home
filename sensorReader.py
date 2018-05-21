@@ -1,7 +1,7 @@
 #ThingSpeak
 from __future__ import print_function
 import psutil
-#dht11 sensor
+#sensors
 import RPi.GPIO as GPIO
 import dht11
 #others
@@ -9,12 +9,123 @@ import time
 import datetime
 import requests
 import paho.mqtt.publish as publish
+import sys
+import threading
 
-class SensorReader(object):
+class SensorReader(threading.Thread):
 
-    def __init__(self,channelID,apiKey):
-        # print "init"
+    def __init__(self,threadName,sensorType):
+        self.threadName=threadName
+        self.sensorType=sensorType
+        self.running=True
+
+        print("Init sensor reader thread "+self.threadName)
+        threading.Thread.__init__(self,name=self.threadName)
+    
+    def stop(self):
+        self.running=False
+        print("Sensor Reader Thread: "+self.threadName+" stopped.")
+
+    def ledAlarm(self):
+        GPIO.setwarnings(False)
+        GPIO.setup(27,GPIO.OUT)
+        print("LED on")
+        GPIO.output(27,GPIO.HIGH)
+        time.sleep(1)
+        print("LED off")
+        GPIO.output(27,GPIO.LOW)
+
+    def buttonHandler(self):
+            "Push button handler"
+            GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            while self.running:
+                GPIO.setmode(GPIO.BCM)
+                input_state = GPIO.input(18)
+                if input_state == False:
+                    print('Button Pressed')
+                    #TODO request to make stereo play
+                    time.sleep(0.2)
+            print("Sensor Reader Thread: "+self.threadName+" exited.")
+
+    def motionHandler(self):
+        "Motion sensor handler"
+
+        GPIO.setmode(GPIO.BCM)
+        # Pin 23 on the board
+        PIR_PIN = 23
+        GPIO.setup(PIR_PIN, GPIO.IN)
+        last_motion_time = time.time()
+
+        while self.running:
+            if GPIO.input(PIR_PIN):
+                last_motion_time = time.time()
+                sys.stdout.flush()
+                print("Motion time: "+str(last_motion_time))
+                # GPIO.setmode(GPIO.BCM)
+
+                #activate led alarm
+                self.ledAlarm()
+
+                # build the payload string
+                tPayload = "field3=1"
+
+                # attempt to publish this data to the topic 
+                try:
+                    publish.single(self.topic, payload=tPayload, hostname=self.mqttHost, port=self.tPort, tls=self.tTLS, transport=self.tTransport)
+                except (KeyboardInterrupt):
+                    break
+                except requests.exceptions.RequestException as e:
+                    print(e)
+                else: 
+                    time.sleep(2)
+        GPIO.cleanup()
+        print("Sensor Reader Thread: "+self.threadName+" exited.")
+
+    def humTempHandler(self):
+        "Humidity and temperature sensor handler"
+
+        # initialize GPIO
+        GPIO.setwarnings(False)
+        GPIO.setmode(GPIO.BCM)
+
+        # read data using pin 17
+        instance = dht11.DHT11(pin=17)
+
+        while(self.running):
+
+            result = instance.read()
+            if result.is_valid():
+                temperature=str(result.temperature)
+                humidity=str(result.humidity)
+                #print data
+                print("Last valid input: " + str(datetime.datetime.now()))
+                print("Temperature: ",temperature)
+                print("Humidity: ",humidity)
+
+                # build the payload string
+                tPayload = "field1=" + temperature + "&field2=" + humidity
+
+                # attempt to publish this data to the topic 
+                try:
+                    publish.single(self.topic, payload=tPayload, hostname=self.mqttHost, port=self.tPort, tls=self.tTLS, transport=self.tTransport)
+                except (KeyboardInterrupt):
+                    break
+                except requests.exceptions.RequestException as e:
+                    print(e)
+                else: 
+                    time.sleep(30)
+        print("Sensor Reader Thread: "+self.threadName+" exited.")
+        GPIO.cleanup()
+
+    def run(self):
         ###   Start of user configuration   ###   
+
+        #  ThingSpeak Channel Settings
+
+        # The ThingSpeak Channel ID
+        channelID = "483274"
+        # The Write API Key for the channel
+        apiKey = "QHVO77NYFDPHMX2J"
         #  MQTT Connection Methods
 
         # Set useUnsecuredTCP to True to use the default MQTT port of 1883
@@ -33,69 +144,34 @@ class SensorReader(object):
         ###   End of user configuration   ###
 
         # The Hostname of the ThinSpeak MQTT service
-        mqttHost = "mqtt.thingspeak.com"
+        self.mqttHost = "mqtt.thingspeak.com"
 
         # Set up the connection parameters based on the connection type
         if useUnsecuredTCP:
-            tTransport = "tcp"
-            tPort = 1883
-            tTLS = None
+            self.tTransport = "tcp"
+            self.tPort = 1883
+            self.tTLS = None
 
         if useUnsecuredWebsockets:
-            tTransport = "websockets"
-            tPort = 80
-            tTLS = None
+            self.tTransport = "websockets"
+            self.tPort = 80
+            self.tTLS = None
 
         if useSSLWebsockets:
             import ssl
-            tTransport = "websockets"
-            tTLS = {'ca_certs':"/etc/ssl/certs/ca-certificates.crt",'tls_version':ssl.PROTOCOL_TLSv1}
-            tPort = 443
-                
+            self.tTransport = "websockets"
+            self.tTLS = {'ca_certs':"/etc/ssl/certs/ca-certificates.crt",'tls_version':ssl.PROTOCOL_TLSv1}
+            self.tPort = 443
+
         # Create the topic string
-        topic = "channels/" + channelID + "/publish/" + apiKey
-        # initialize GPIO
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BCM)
-        GPIO.cleanup()
-
-        # read data using pin 17
-        instance = dht11.DHT11(pin=17)
-
-        while(True):
-
-            result = instance.read()
-            if result.is_valid():
-                temperature=str(result.temperature)
-                humidity=str(result.humidity)
-                #print data
-                print("Last valid input: " + str(datetime.datetime.now()))
-                print("Temperature: ",temperature)
-                print("Humidity: ",humidity)
-
-                # build the payload string
-                tPayload = "field1=" + temperature + "&field2=" + humidity
-
-                # attempt to publish this data to the topic 
-                try:
-                    # a=publish.single(topic, payload=tPayload, hostname=mqttHost, port=tPort, tls=tTLS, transport=tTransport)
-                    # print(a)
-                    r=requests.get("https://api.thingspeak.com/update?api_key=QHVO77NYFDPHMX2J&field1=500")
-                    # r=requests.get("https://api.thingspeak.com/update?api_key=QHVO77NYFDPHMX2J&field2="+humidity)
-                except (KeyboardInterrupt):
-                    break
-                except requests.exceptions.RequestException as e:
-                    print(e)
-                else: 
-                    time.sleep(5)
-
-if __name__=='__main__':
-    # The ThingSpeak Channel ID
-    # Replace this with your Channel ID
-    channelID = "483274"
-
-    # The Write API Key for the channel
-    # Replace this with your Write API key
-    apiKey = "QHVO77NYFDPHMX2J"
-
-    newSensor=SensorReader(channelID,apiKey)
+        self.topic = "channels/" + channelID + "/publish/" + apiKey
+        
+        #handler for raspberrypy sensors
+        if self.sensorType == "humidity_temperature_sensor":
+            self.humTempHandler()
+        elif self.sensorType == "motion_sensor":
+            self.motionHandler()
+        elif self.sensorType == "button_sensor":
+            self.buttonHandler()
+        
+        

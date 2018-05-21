@@ -67,7 +67,12 @@ class HomeCatalog(object):
                 devices = json.loads(jsonData)["devices"]
                 for device in devices:
                     if device["id"] == deviceId:
-                        return Msg({"resources":"".join(device["resources"])}).info()
+                        resourcesToPrint=""
+                        for resource in device["resources"]:
+                            if resourcesToPrint == "":
+                                resourcesToPrint+=resource
+                            else: resourcesToPrint+=", "+resource
+                        return Msg({"resources":"["+resourcesToPrint+"]"}).info()
                 return Msg("Resource not available").error()
             elif uri[0] == "device":
                 deviceId=params["id"]
