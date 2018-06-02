@@ -13,16 +13,27 @@ from user import User
 import socket
 from message import Msg
 
+"""
+CONFIGURATIONS
+webservice
+-host
+-port
+-filePath: name or path of configuration file
+-deviceCheckInterval: time interval to check devices
+"""
+
 class HomeCatalog(object):
     exposed = True
 
-    filePath = "configuration.json"
-    deviceCheckInterval = 2000
+    def __init__(self,host,port,filePath,deviceCheckInterval):
+        self.host=host
+        self.port=port
+        self.filePath=filePath
+        self.deviceCheckInterval=deviceCheckInterval
 
-    def __init__(self,host,port):
         if not os.path.exists(self.filePath):
-            with open("configuration.json", "a+") as outfile:
-                json.dump(self.initialContent(host,port), outfile)
+            with open(self.filePath, "a+") as outfile:
+                json.dump(self.initialContent(self.host,self.port), outfile)
                 outfile.close()
             print "created configuration.json"
 
@@ -102,19 +113,22 @@ class HomeCatalog(object):
             if uri[0] == "addDevice":
                 # read body
                 body = json.loads(cherrypy.request.body.read())
-                endpoint = body["endpoint"]
+                endpoint = body["endPoints"]
                 resources = body["resources"]
+                #check device's first occorrence
+                if "id" in body:
+                    newDevice = Device(endpoint, resources,body["id"])
+                else: newDevice = Device(endpoint, resources)
                 # create device
-                newDevice = Device(endpoint, resources)
                 # read from config file
                 jsonData = open(self.filePath).read()
                 updateData = json.loads(jsonData)
                 updateData["devices"].append(newDevice.getInfo())
                 # update data
-                with open("configuration.json", "w") as outfile:
+                with open(self.filePath, "w") as outfile:
                     json.dump(updateData, outfile)
                     outfile.close()
-                return Msg({"action":"added new device","id":newDevice.getId()}).info()
+                return Msg({"action":"added new device","device":newDevice.getInfo()}).info()
             if uri[0] == "addUser":
                 # read body
                 body = json.loads(cherrypy.request.body.read())
@@ -128,7 +142,7 @@ class HomeCatalog(object):
                 updateData = json.loads(jsonData)
                 updateData["users"].append(newUser.getInfo())
                 # update data
-                with open("configuration.json", "w") as outfile:
+                with open(self.filePath, "w") as outfile:
                     json.dump(updateData, outfile)
                     outfile.close()
                 return Msg({"action":"added new user","id":newUser.getId()}).info()
@@ -153,8 +167,11 @@ class MessageBroker(object):
 
 
 class Device(object):
-    def __init__(self, endPoints, resources):
-        self.id = self.generateUniqueId()
+    def __init__(self,endPoints, resources,deviceId=None):
+        #check device's first occorrence
+        if deviceId is None:
+            self.id = self.generateUniqueId()
+        else: self.id = deviceId
         self.endPoints = endPoints
         self.resources = resources
         self.timestamp = self.generateTimestamp()
@@ -185,15 +202,20 @@ class Device(object):
 
 
 if __name__ == '__main__':
-    host = "192.168.1.5"
+    #Catalog configurations
+    host = "192.168.1.7"
     port = 8080
+    filePath = "configuration.json"
+    deviceCheckInterval = 2000
+
+    #cherrypy webservice configuration
     conf = {
         '/': {
             'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
             'tools.sessions.on': True
         }
     }
-    cherrypy.tree.mount(HomeCatalog(host,port), '/', conf)
+    cherrypy.tree.mount(HomeCatalog(host,port,filePath,deviceCheckInterval), '/', conf)
     cherrypy.config.update({'server.socket_host': host})
     cherrypy.config.update({'server.socket_port': port})
     cherrypy.engine.start()

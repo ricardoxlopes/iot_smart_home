@@ -5,8 +5,13 @@ from sensorReader import SensorReader
 import cherrypy
 import socket
 from message import Msg
+import os
 
 """
+CONFIGURATIONS
+webservice
+device host port
+catalog endpoint: host port
 
 Modular device, can be modified to be reused.
 To be set 3 options: [host port,catalog endpoint, available resources]
@@ -31,6 +36,7 @@ pin 1 3v3-dht11
 pin 2 5v- motion
 
 """
+
 
 class MyPublisher:
     def __init__(self, clientID, host, port, topic):
@@ -64,11 +70,12 @@ class MyPublisher:
 class MyDevice(object):
     exposed = True
 
-    def __init__(self, endpoint, catalogEndpoint, resources):
+    def __init__(self, endpoint, catalogEndpoint, resources, filePath):
         print "Init device"
         self.endpoint = endpoint
         self.catalogEndpoint = catalogEndpoint
         self.resources = resources
+        self.filePath = filePath
         self.runningResources = {}
         self.broker = self.getBroker()
         self.myDevice = self.registerDevice()
@@ -86,9 +93,14 @@ class MyDevice(object):
                         else:
                             return self.startResource(resourceId)
                     else:
-                        Msg("Not registered").error()
+                        return Msg("Not registered").error()
                 else:
-                    Msg("Resource not available").error()
+                    return Msg("Resource not available").error()
+            elif uri[0] == "reboot":
+                self.myDevice = self.registerDevice()
+                return Msg("Device rebooted").info()
+            else:
+                return Msg("Invalid uri").error()
         else:
             return Msg("Invalid number of uris").error()
 
@@ -110,10 +122,20 @@ class MyDevice(object):
         "Register device to catalog"
 
         print "Registering device..."
-        user = json.dumps({"endpoint": self.endpoint,
-                           "resources": self.resources})
+        device=None
+
+        if os.path.exists(self.filePath):
+            print "Read device from persistence..."
+            device = open(self.filePath).read()
+            # device = json.loads(jsonData)
+        else: device = json.dumps({"endPoints": self.endpoint,
+                             "resources": self.resources})
+        # user = json.dumps({"endpoint": self.endpoint,
+            #    "resources": self.resources})
+        print device+" device"
         try:
-            r = requests.post(self.catalogEndpoint+'/addDevice', data=user)
+            r = requests.post(self.catalogEndpoint +
+                              '/addDevice', data=device)
         except requests.exceptions.RequestException as e:
             error = Msg("unable to register").error()
             print e
@@ -121,27 +143,40 @@ class MyDevice(object):
             return error
         else:
             info = json.loads(r.text)["info"]
-            deviceId = info["id"]
-            return Msg({"id": deviceId}).info()
+            deviceInfo = info["device"]
+            if not os.path.exists(self.filePath):
+                with open(self.filePath, "a+") as outfile:
+                    json.dump(deviceInfo, outfile)
+                    outfile.close()
+                print "created deviceConfiguration.json"
+                return Msg("New device registered.").info()
+            else:
+                return Msg("Device already registered.").info()
 
     def startResource(self, resourceId):
         "Start resources by id. Possible to add new handlers for new resources such as sensors"
 
         if resourceId == "humidity_temperature_sensor":
             name = "humidity_temperature_sensor1"
-            mySensor = SensorReader(name,"humidity_temperature_sensor")
+            mySensor = SensorReader(name, "humidity_temperature_sensor")
             mySensor.start()
             self.runningResources[resourceId] = mySensor
             return Msg("Resource "+name+" started").info()
         elif resourceId == "motion_sensor":
             name = "motion_sensor1"
-            mySensor = SensorReader(name,"motion_sensor")
+            mySensor = SensorReader(name, "motion_sensor")
             mySensor.start()
             self.runningResources[resourceId] = mySensor
             return Msg("Resource "+name+" started").info()
         elif resourceId == "button_sensor":
             name = "button_sensor1"
-            mySensor = SensorReader(name,"button_sensor")
+            mySensor = SensorReader(name, "button_sensor")
+            mySensor.start()
+            self.runningResources[resourceId] = mySensor
+            return Msg("Resource "+name+" started").info()
+        elif resourceId == "stereo":
+            name = "stereo1"
+            mySensor = SensorReader(name, "stereo")
             mySensor.start()
             self.runningResources[resourceId] = mySensor
             return Msg("Resource "+name+" started").info()
@@ -156,15 +191,16 @@ class MyDevice(object):
         del self.runningResources[resourceId]
         return Msg("Stopped resource "+resourceId).info()
 
-
 if __name__ == '__main__':
     # My Device settings
     host = "192.168.1.4"
     port = 8080
     endpoint = "http://"+host+":"+str(port)+"/"
-    resources = ["humidity_temperature_sensor","motion_sensor","button_sensor"]
+    resources = ["humidity_temperature_sensor",
+                 "motion_sensor", "button_sensor", "stereo"]
+    filePath = "deviceConfiguration.json"
     # Catalog endpoint
-    catalogEndpoint = "http://192.168.1.5:8080"
+    catalogEndpoint = "http://192.168.1.7:8080"
     conf = {
         '/': {
             'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
@@ -172,7 +208,7 @@ if __name__ == '__main__':
         }
     }
     cherrypy.tree.mount(
-        MyDevice(endpoint, catalogEndpoint, resources), '/', conf)
+        MyDevice(endpoint, catalogEndpoint, resources, filePath), '/', conf)
     cherrypy.config.update({'server.socket_host': host})
     cherrypy.config.update({'server.socket_port': port})
     cherrypy.engine.start()

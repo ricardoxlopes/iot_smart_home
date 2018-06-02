@@ -87,18 +87,18 @@ class MyBot(object):
             print error
         else: update.message.reply_text(r.text)
 
-    def newUser(self, bot, update, args):
-        user = json.dumps(
-            {"name": args[0], "surname": args[1], "email": args[2]})
-        try:
-            r = requests.post(self.endpoint+'/addUser', data=user)
-        except requests.exceptions.RequestException as e:
-            error=Msg("Unable to create new user").error()
-            print e
-            print error
-        else:
-            update.message.reply_text("New user added! Your smart home said:")
-            update.message.reply_text(r.text)
+    # def newUser(self, bot, update, args):
+    #     user = json.dumps(
+    #         {"name": args[0], "surname": args[1], "email": args[2]})
+    #     try:
+    #         r = requests.post(self.endpoint+'/addUser', data=user)
+    #     except requests.exceptions.RequestException as e:
+    #         error=Msg("Unable to create new user").error()
+    #         print e
+    #         print error
+    #     else:
+    #         update.message.reply_text("New user added! Your smart home said:")
+    #         update.message.reply_text(r.text)
 
     def newDevice(self, bot, update, args):
         user = json.dumps({"endpoint": args[0], "resources": args[1]})
@@ -125,18 +125,32 @@ class MyBot(object):
             print error
         else: update.message.reply_text(r.text)
     
+    def rebootDevice(self, bot, update,args):
+        try:
+            r = requests.get(self.endpoint+'/device?id='+args[0])
+            update.message.reply_text("DEVICE:")
+            update.message.reply_text(r.text)
+            device=json.loads(r.text)["info"]
+            r = requests.get(device["endPoints"]+'/reboot')
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to reboot device").error()
+            print e
+            print error
+        else: update.message.reply_text(r.text)
+
     def getHelp(self, bot, update):
         commandsList="""BOT COMMAND LIST:
 
         info - Catalog Webservice Info
-        user - Command: /user name surname email | Ex: /user name1 surname1 email1 | Add new user
         device - Command: /device host port resources | Ex: /device localhost 8080 ["humidity"] | Add new device
         resource - Command: /resource deviceId resourceId | Ex: /resouce 11-12-33-33 | Start device's resource
         users - Get list of users
         devices - Get list of devices
-        resources - Command: /resources deviceId | Ex: /resources 11-12-33-33 | Get list of resources for a device"""
-
+        resources - Command: /resources deviceId | Ex: /resources 11-12-33-33 | Get list of resources for a device
+        """
+        
         update.message.reply_text(commandsList)
+  #      user - Command: /user name surname email | Ex: /user name1 surname1 email1 | Add new user
 
     def main(self):
         # Create the Updater and pass it your bot's token.
@@ -147,13 +161,15 @@ class MyBot(object):
 
         dp.add_handler(CommandHandler("info", self.getInfo))
         dp.add_handler(CommandHandler("help", self.getHelp))
+
         dp.add_handler(CommandHandler("users", self.getUsers))
         dp.add_handler(CommandHandler("devices", self.getDevices))
         dp.add_handler(CommandHandler("resources", self.getResources,pass_args=True))
 
         dp.add_handler(CommandHandler("resource", self.startResource,pass_args=True))
-        dp.add_handler(CommandHandler("user", self.newUser,pass_args=True))
+        # dp.add_handler(CommandHandler("user", self.newUser,pass_args=True))
         dp.add_handler(CommandHandler("device", self.newDevice,pass_args=True))
+        dp.add_handler(CommandHandler("reboot", self.rebootDevice,pass_args=True))
 
         # log all errors
         dp.add_error_handler(self.error)
@@ -168,9 +184,10 @@ class MyBot(object):
 
 if __name__ == '__main__':
     #catalog address
-    address = '192.168.1.5'
+    address = '192.168.1.7'
     #catalog port
     port = 8080
+    #catalog endpoint
     endpoint = 'http://'+address+':'+str(port)
     bot = MyBot(endpoint)
     bot.main()

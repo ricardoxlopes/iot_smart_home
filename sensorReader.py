@@ -11,6 +11,12 @@ import requests
 import paho.mqtt.publish as publish
 import sys
 import threading
+#stereo
+import pygame
+import os
+from os import listdir
+from os.path import isfile, join
+from random import shuffle
 
 class SensorReader(threading.Thread):
 
@@ -26,6 +32,35 @@ class SensorReader(threading.Thread):
         self.running=False
         print("Sensor Reader Thread: "+self.threadName+" stopped.")
 
+    def stereoHandler(self):
+        defaultDirectory="Music/"
+
+        if not os.path.exists(defaultDirectory):
+            os.makedirs(defaultDirectory)
+            print("Empty folder...")
+            exit()
+
+        pygame.mixer.init()
+        #files names
+        playlist = [f for f in listdir(defaultDirectory) if isfile(join(defaultDirectory, f))]
+        #shuffle playlist
+        shuffle(playlist)
+        music=defaultDirectory+playlist.pop()
+        print(music)
+        pygame.mixer.music.load(music) 
+        pygame.mixer.music.play()
+
+        while self.running:
+            if len(playlist) > 0:
+                music=defaultDirectory+playlist.pop()
+                print(music)
+                pygame.mixer.music.queue(music)
+            else: continue
+        
+        #TODO alert when playlist ends, to display state in ionic app
+        #TODO alert when music is changed
+        #TODO music is not ending
+
     def ledAlarm(self):
         GPIO.setwarnings(False)
         GPIO.setup(27,GPIO.OUT)
@@ -37,6 +72,7 @@ class SensorReader(threading.Thread):
 
     def buttonHandler(self):
             "Push button handler"
+            GPIO.setwarnings(False)
             GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
             while self.running:
                 GPIO.setmode(GPIO.BCM)
@@ -49,7 +85,7 @@ class SensorReader(threading.Thread):
 
     def motionHandler(self):
         "Motion sensor handler"
-
+        GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
         # Pin 23 on the board
         PIR_PIN = 23
@@ -173,5 +209,6 @@ class SensorReader(threading.Thread):
             self.motionHandler()
         elif self.sensorType == "button_sensor":
             self.buttonHandler()
-        
-        
+        elif self.sensorType == "stereo":
+            self.stereoHandler()
+        else: print("Unavailable sensor")

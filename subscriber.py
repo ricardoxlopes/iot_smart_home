@@ -10,7 +10,7 @@ class MySubscriber():
         self._paho_mqtt.on_connect = self.myOnConnect
         self._paho_mqtt.on_message = self.myOnMessageReceived
 
-        self.topic = '/this/is/my/topic'
+        self.topic = '/this/is/my/topic1'
 
     def start (self):
         #manage connection to broker
