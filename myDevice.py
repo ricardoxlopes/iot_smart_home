@@ -132,7 +132,6 @@ class MyDevice(object):
                              "resources": self.resources})
         # user = json.dumps({"endpoint": self.endpoint,
             #    "resources": self.resources})
-        print device+" device"
         try:
             r = requests.post(self.catalogEndpoint +
                               '/addDevice', data=device)
@@ -198,7 +197,7 @@ if __name__ == '__main__':
     endpoint = "http://"+host+":"+str(port)+"/"
     resources = ["humidity_temperature_sensor",
                  "motion_sensor", "button_sensor", "stereo"]
-    filePath = "deviceConfiguration.json"
+    filePath = "Configuration/deviceConfiguration.json"
     # Catalog endpoint
     catalogEndpoint = "http://192.168.1.7:8080"
     conf = {

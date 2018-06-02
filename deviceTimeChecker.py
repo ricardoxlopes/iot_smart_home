@@ -4,16 +4,17 @@ import threading
 class DeviceTimeChecker(object):
     """Device lifetime checker"""
 
-    def __init__(self,name,interval):
+    def __init__(self,name,interval,filePath):
         self.name=name
         self.interval=interval
         #device lifetime checker
         self.lifetime=180
+        self.filePath=filePath
 
     def check(self):
         print "Device checker ",self.getName()," working..."
         #read devices
-        jsonData=open("configuration.json").read()
+        jsonData=open(self.filePath).read()
         updateData = json.loads(jsonData)
         for device in updateData["devices"]:
             actualTime=self.generateTimestamp()
@@ -25,7 +26,7 @@ class DeviceTimeChecker(object):
                 updateData["devices"].remove(device)
                 print "Device checker ",self.getName," deleted device with id: ",device["id"]
                 #update data
-                with open("configuration.json","w") as outfile:
+                with open(self.filePath,"w") as outfile:
                     json.dump(updateData, outfile)
                     outfile.close()
         #launch new thread

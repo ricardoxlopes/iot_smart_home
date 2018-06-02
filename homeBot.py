@@ -16,6 +16,7 @@ from message import Msg
 import string
 import requests
 import json
+import os
 
 class MyBot(object):
     """
@@ -27,14 +28,14 @@ class MyBot(object):
         BOT COMMAND LIST:
 
         info - Catalog Webservice Info
-        user - Command: /user name surname email | Ex: /user name1 surname1 email1 | Add new user
+        setid - Command: /setId deviceId | Ex: /setId 11-12-33-33 | Persist most used device id
+        reboot - Command: /reboot deviceId | Ex: /reboot 11-12-33-33 | Update catalog's device's register
         device - Command: /device host port resources | Ex: /device localhost 8080 ["humidity"] | Add new device
         resource - Command: /resource deviceId resourceId | Ex: /resouce 11-12-33-33 | Start device's resource
-        users - Get list of users
         devices - Get list of devices
         resources - Command: /resources deviceId | Ex: /resources 11-12-33-33 | Get list of resources for a device
         help - commands list
-        
+
         UPDATE bot list:
         BOTFATHER:
         1. /setcommands
@@ -42,9 +43,22 @@ class MyBot(object):
         3. copy list 
     """
 
-    def __init__(self,endpoint):
+    # user - Command: /user name surname email | Ex: /user name1 surname1 email1 | Add new user
+    # users - Get list of users
+       
+    def __init__(self,endpoint,filePath):
         print "Bot started..."
         self.endpoint=endpoint
+        self.filePath=filePath
+        self.getId()
+        self.tempId=None
+
+    def getId(self):
+        if os.path.exists(self.filePath):
+            jsonData = open(self.filePath).read()
+            jsonData = json.loads(jsonData)
+            self.tempId=jsonData["id"]
+            print "User's device Id read..."
 
     def error(self, bot, update, error):
         """Log Errors caused by Updates."""
@@ -60,14 +74,14 @@ class MyBot(object):
         else: 
             update.message.reply_text(r.text)
 
-    def getUsers(self, bot, update):
-        try:
-            r = requests.get(self.endpoint+'/users')
-        except requests.exceptions.RequestException as e:
-            error=Msg("Unable to get users").error()
-            print e
-            print error
-        else: update.message.reply_text(r.text)
+    # def getUsers(self, bot, update):
+    #     try:
+    #         r = requests.get(self.endpoint+'/users')
+    #     except requests.exceptions.RequestException as e:
+    #         error=Msg("Unable to get users").error()
+    #         print e
+    #         print error
+    #     else: update.message.reply_text(r.text)
 
     def getDevices(self, bot, update):
         try:
@@ -101,9 +115,9 @@ class MyBot(object):
     #         update.message.reply_text(r.text)
 
     def newDevice(self, bot, update, args):
-        user = json.dumps({"endpoint": args[0], "resources": args[1]})
+        device = json.dumps({"endpoint": args[0], "resources": args[1]})
         try:
-            r = requests.post(self.endpoint+'/addDevice', data=user)
+            r = requests.post(self.endpoint+'/addDevice', data=device)
         except requests.exceptions.RequestException as e:
             error=Msg("Unable to create new device").error()
             print e
@@ -114,9 +128,9 @@ class MyBot(object):
 
     def startResource(self, bot, update,args):
         try:
-            r = requests.get(self.endpoint+'/device?id='+args[0])
-            update.message.reply_text("DEVICE:")
-            update.message.reply_text(r.text)
+            if self.tempId is not None:
+                r = requests.get(self.endpoint+'/device?id='+self.tempId)
+            else: r = requests.get(self.endpoint+'/device?id='+args[0])
             device=json.loads(r.text)["info"]
             r = requests.get(device["endPoints"]+'/resource?id='+args[1])
         except requests.exceptions.RequestException as e:
@@ -127,11 +141,29 @@ class MyBot(object):
     
     def rebootDevice(self, bot, update,args):
         try:
-            r = requests.get(self.endpoint+'/device?id='+args[0])
-            update.message.reply_text("DEVICE:")
-            update.message.reply_text(r.text)
+            if self.tempId is not None:
+                r = requests.get(self.endpoint+'/device?id='+self.tempId)
+            else: r = requests.get(self.endpoint+'/device?id='+args[0])
             device=json.loads(r.text)["info"]
             r = requests.get(device["endPoints"]+'/reboot')
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to reboot device").error()
+            print e
+            print error
+        else: update.message.reply_text(r.text)
+
+    def setId(self, bot, update,args):
+        try:
+            if not os.path.exists(self.filePath):
+                with open(self.filePath, "a+") as outfile:
+                    json.dump({"id":args[0]}, outfile)
+                    outfile.close()
+                print "created botConfiguration.json"
+            else:
+                jsonData = open(self.filePath).read()
+                updateData = json.loads(jsonData)
+                updateData["id"]=args[0]
+            self.getId()
         except requests.exceptions.RequestException as e:
             error=Msg("Unable to reboot device").error()
             print e
@@ -142,16 +174,21 @@ class MyBot(object):
         commandsList="""BOT COMMAND LIST:
 
         info - Catalog Webservice Info
+
         device - Command: /device host port resources | Ex: /device localhost 8080 ["humidity"] | Add new device
         resource - Command: /resource deviceId resourceId | Ex: /resouce 11-12-33-33 | Start device's resource
-        users - Get list of users
+        setid - Command: /setId deviceId | Ex: /setId 11-12-33-33 | Persist most used device id
+        reboot - Command: /reboot deviceId | Ex: /reboot 11-12-33-33 | Update catalog's device's register
+
         devices - Get list of devices
         resources - Command: /resources deviceId | Ex: /resources 11-12-33-33 | Get list of resources for a device
+        
         """
         
         update.message.reply_text(commandsList)
   #      user - Command: /user name surname email | Ex: /user name1 surname1 email1 | Add new user
-
+#users - Get list of users
+        
     def main(self):
         # Create the Updater and pass it your bot's token.
         updater = Updater("589534581:AAEjVfLTNkPFycdscg_XaVQJEcUP0eFgPec")
@@ -170,6 +207,7 @@ class MyBot(object):
         # dp.add_handler(CommandHandler("user", self.newUser,pass_args=True))
         dp.add_handler(CommandHandler("device", self.newDevice,pass_args=True))
         dp.add_handler(CommandHandler("reboot", self.rebootDevice,pass_args=True))
+        dp.add_handler(CommandHandler("setid", self.setId,pass_args=True))
 
         # log all errors
         dp.add_error_handler(self.error)
@@ -189,5 +227,7 @@ if __name__ == '__main__':
     port = 8080
     #catalog endpoint
     endpoint = 'http://'+address+':'+str(port)
-    bot = MyBot(endpoint)
+    #homebot config
+    filePath="Configuration/botConfiguration.json"
+    bot = MyBot(endpoint,filePath)
     bot.main()

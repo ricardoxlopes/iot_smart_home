@@ -39,7 +39,7 @@ class HomeCatalog(object):
 
         print "Welcome!"
         # start device checker thread
-        # deviceChecker = DeviceTimeChecker("deviceChecker1",self.deviceCheckInterval)
+        # deviceChecker = DeviceTimeChecker("deviceChecker1",self.deviceCheckInterval,self.filePath)
         # deviceChecker.check()
         # MQTT subscriber
         mqttSubscriber = MySubscriber("subscriber1")
@@ -115,14 +115,31 @@ class HomeCatalog(object):
                 body = json.loads(cherrypy.request.body.read())
                 endpoint = body["endPoints"]
                 resources = body["resources"]
+                timestamp = body["resources"]
                 #check device's first occorrence
                 if "id" in body:
                     newDevice = Device(endpoint, resources,body["id"])
                 else: newDevice = Device(endpoint, resources)
-                # create device
+
                 # read from config file
                 jsonData = open(self.filePath).read()
                 updateData = json.loads(jsonData)
+                devices = updateData["devices"]
+                for device in devices:
+                    if device["id"] == body["id"]:
+                        devices.remove(device)
+                        
+                        # device["endPoints"]=endpoint
+                        # device["resources"]=resources
+                        # device["timeStamp"]=timestamp
+                        # with open(self.filePath, "w") as outfile:
+                        #     json.dump(devices, outfile)
+                        #     outfile.close()
+                        #     return Msg({"action":"updated device","device":newDevice.getInfo()}).info()
+                # create device
+                # read from config file
+                # jsonData = open(self.filePath).read()
+                # updateData = json.loads(jsonData)
                 updateData["devices"].append(newDevice.getInfo())
                 # update data
                 with open(self.filePath, "w") as outfile:
@@ -205,7 +222,7 @@ if __name__ == '__main__':
     #Catalog configurations
     host = "192.168.1.7"
     port = 8080
-    filePath = "configuration.json"
+    filePath = "Configuration/catalogConfiguration.json"
     deviceCheckInterval = 2000
 
     #cherrypy webservice configuration
