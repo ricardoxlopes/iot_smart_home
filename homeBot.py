@@ -60,25 +60,50 @@ class MyBot(object):
 
     def updateLightState(self, bot, update,args):
         sendData=json.dumps({"divisionName":args[0],"lightName":args[1]})
-        r = requests.put(self.endpoint+'/updateLightState', data=sendData)
-        update.message.reply_text(r.text)
+        try:
+            r = requests.put(self.endpoint+'/updateLightState', data=sendData)
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to get resources").error()
+            print e
+            print error
+        else: update.message.reply_text(r.text)
 
     def removeLight(self, bot, update,args):
-        r = requests.delete(self.endpoint+'/removeLight?divisionName='+args[0]+'&lightName='+args[1])
-        update.message.reply_text(r.text)
+        try:
+            r = requests.delete(self.endpoint+'/removeLight?divisionName='+args[0]+'&lightName='+args[1])
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to get resources").error()
+            print e
+            print error
+        else: update.message.reply_text(r.text)
 
     def removeDivision(self, bot, update):
-        r = requests.delete(self.endpoint+'/removeDivision?divisionName='+args[0])
-        update.message.reply_text(r.text)
+        try:
+            r = requests.delete(self.endpoint+'/removeDivision?divisionName='+args[0])
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to get resources").error()
+            print e
+            print error
+        else: update.message.reply_text(r.text)
 
     def addLight(self, bot, update,args):
-        sendData=json.dumps({"divisionName":args[0],"lightName":args[1]})
-        r = requests.post(self.endpoint+'/addLight', data=sendData)
-        update.message.reply_text(r.text)
+        try:
+            sendData=json.dumps({"divisionName":args[0],"lightName":args[1]})
+            r = requests.post(self.endpoint+'/addLight', data=sendData)
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to get resources").error()
+            print e
+            print error
+        else: update.message.reply_text(r.text)
     
     def addDivison(self, bot, update,args):
-        r = requests.post(self.endpoint+'/addDivision', data=args[0])
-        update.message.reply_text(r.text)
+        try:
+            r = requests.post(self.endpoint+'/addDivision', data=args[0])
+        except requests.exceptions.RequestException as e:
+            error=Msg("Unable to get resources").error()
+            print e
+            print error
+        else: update.message.reply_text(r.text)
 
     def getId(self):
         if os.path.exists(self.filePath):

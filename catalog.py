@@ -89,15 +89,15 @@ class HomeCatalog(object):
                                 resourcesToPrint += ", "+resource
                         return Msg({"resources": "["+resourcesToPrint+"]"}).info()
                 return Msg("Resource not available").error()
-            elif uri[0] == "device":
-                deviceId = params["id"]
-                # read from config file
-                jsonData = open(self.filePath).read()
-                devices = json.loads(jsonData)["devices"]
-                for device in devices:
-                    if device["id"] == deviceId:
-                        return Msg(device).info()
-                return Msg("No device with id="+deviceId).error()
+            # elif uri[0] == "device":
+            #     deviceId = params["id"]
+            #     # read from config file
+            #     jsonData = open(self.filePath).read()
+            #     devices = json.loads(jsonData)["devices"]
+            #     for device in devices:
+            #         if device["id"] == deviceId:
+            #             return Msg(device).info()
+            #     return Msg("No device with id="+deviceId).error()
             elif uri[0] == "user":
                 userId = params["id"]
                 # read from config file
