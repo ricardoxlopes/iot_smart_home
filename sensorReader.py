@@ -81,8 +81,8 @@ class SensorReader(threading.Thread):
                 GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                 input_state = GPIO.input(18)
                 if input_state == False:
-                    print('Button Pressed')
-                    #TODO request to make stereo play
+                    print('Panic button pressed!')
+                    
                     time.sleep(0.2)
             print("Sensor Reader Thread: "+self.threadName+" exited.")
 

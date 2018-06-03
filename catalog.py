@@ -12,6 +12,7 @@ from deviceTimeChecker import DeviceTimeChecker
 from user import User
 import socket
 from message import Msg
+from homeConfigurator import HomeConfigurator
 
 """
 CONFIGURATIONS
@@ -22,18 +23,20 @@ webservice
 -deviceCheckInterval: time interval to check devices
 """
 
+
 class HomeCatalog(object):
     exposed = True
 
-    def __init__(self,host,port,filePath,deviceCheckInterval):
-        self.host=host
-        self.port=port
-        self.filePath=filePath
-        self.deviceCheckInterval=deviceCheckInterval
+    def __init__(self, host, port, filePath, deviceCheckInterval, homeConfig):
+        self.host = host
+        self.port = port
+        self.filePath = filePath
+        self.homeConfig = homeConfig
+        self.deviceCheckInterval = deviceCheckInterval
 
         if not os.path.exists(self.filePath):
             with open(self.filePath, "a+") as outfile:
-                json.dump(self.initialContent(self.host,self.port), outfile)
+                json.dump(self.initialContent(self.host, self.port), outfile)
                 outfile.close()
             print "created configuration.json"
 
@@ -45,7 +48,7 @@ class HomeCatalog(object):
         mqttSubscriber = MySubscriber("subscriber1")
         mqttSubscriber.start()
 
-    def initialContent(self,host,port):
+    def initialContent(self, host, port):
         host = socket.gethostbyname(socket.gethostname())
         port = 8080
         return {
@@ -54,8 +57,8 @@ class HomeCatalog(object):
             "devices": [],
             "users": []
         }
-    
-    def GET(self, *uri,**params):
+
+    def GET(self, *uri, **params):
 
         if len(uri) == 0:
             return json.dumps({"info": "Smart Home"})
@@ -73,20 +76,21 @@ class HomeCatalog(object):
                 users = json.loads(jsonData)["users"]
                 return Msg({"users": users}).info()
             elif uri[0] == "resources":
-                deviceId=str(params["id"])
+                deviceId = str(params["id"])
                 jsonData = open(self.filePath).read()
                 devices = json.loads(jsonData)["devices"]
                 for device in devices:
                     if device["id"] == deviceId:
-                        resourcesToPrint=""
+                        resourcesToPrint = ""
                         for resource in device["resources"]:
                             if resourcesToPrint == "":
-                                resourcesToPrint+=resource
-                            else: resourcesToPrint+=", "+resource
-                        return Msg({"resources":"["+resourcesToPrint+"]"}).info()
+                                resourcesToPrint += resource
+                            else:
+                                resourcesToPrint += ", "+resource
+                        return Msg({"resources": "["+resourcesToPrint+"]"}).info()
                 return Msg("Resource not available").error()
             elif uri[0] == "device":
-                deviceId=params["id"]
+                deviceId = params["id"]
                 # read from config file
                 jsonData = open(self.filePath).read()
                 devices = json.loads(jsonData)["devices"]
@@ -95,7 +99,7 @@ class HomeCatalog(object):
                         return Msg(device).info()
                 return Msg("No device with id="+deviceId).error()
             elif uri[0] == "user":
-                userId=params["id"]
+                userId = params["id"]
                 # read from config file
                 jsonData = open(self.filePath).read()
                 users = json.loads(jsonData)["users"]
@@ -103,6 +107,13 @@ class HomeCatalog(object):
                     if user["id"] == userId:
                         return Msg(user).info()
                 return Msg("No user with id="+deviceId).error()
+            elif uri[0] == "home":
+                jsonData = open(self.homeConfig).read()
+                return jsonData
+            elif uri[0] == "beacons":
+                jsonData = open(self.homeConfig).read()
+                config = jsonData["homeConfig"]
+                return config["beacons"]
             else:
                 return Msg("Invalid uri").error()
         else:
@@ -115,11 +126,12 @@ class HomeCatalog(object):
                 body = json.loads(cherrypy.request.body.read())
                 endpoint = body["endPoints"]
                 resources = body["resources"]
-                timestamp = body["resources"]
-                #check device's first occorrence
+                timestamp = body["timeStamp"]
+                # check device's first occorrence
                 if "id" in body:
-                    newDevice = Device(endpoint, resources,body["id"])
-                else: newDevice = Device(endpoint, resources)
+                    newDevice = Device(endpoint, resources, body["id"])
+                else:
+                    newDevice = Device(endpoint, resources)
 
                 # read from config file
                 jsonData = open(self.filePath).read()
@@ -128,25 +140,13 @@ class HomeCatalog(object):
                 for device in devices:
                     if device["id"] == body["id"]:
                         devices.remove(device)
-                        
-                        # device["endPoints"]=endpoint
-                        # device["resources"]=resources
-                        # device["timeStamp"]=timestamp
-                        # with open(self.filePath, "w") as outfile:
-                        #     json.dump(devices, outfile)
-                        #     outfile.close()
-                        #     return Msg({"action":"updated device","device":newDevice.getInfo()}).info()
-                # create device
-                # read from config file
-                # jsonData = open(self.filePath).read()
-                # updateData = json.loads(jsonData)
                 updateData["devices"].append(newDevice.getInfo())
                 # update data
                 with open(self.filePath, "w") as outfile:
                     json.dump(updateData, outfile)
                     outfile.close()
-                return Msg({"action":"added new device","device":newDevice.getInfo()}).info()
-            if uri[0] == "addUser":
+                return Msg({"action": "added new device", "device": newDevice.getInfo()}).info()
+            elif uri[0] == "addUser":
                 # read body
                 body = json.loads(cherrypy.request.body.read())
                 name = body["name"]
@@ -162,9 +162,66 @@ class HomeCatalog(object):
                 with open(self.filePath, "w") as outfile:
                     json.dump(updateData, outfile)
                     outfile.close()
-                return Msg({"action":"added new user","id":newUser.getId()}).info()
+                return Msg({"action": "added new user", "id": newUser.getId()}).info()
+            elif uri[0] == "addDivision":
+                # read body
+                divisionName = cherrypy.request.body.read()
+                hc = HomeConfigurator(self.homeConfig)
+                hc.newDivision(divisionName)
+                return Msg("Added "+divisionName+" division").info()
+            elif uri[0] == "addLight":
+                body = json.loads(cherrypy.request.body.read())
+                divisionName = body["divisionName"]
+                lightName = body["lightName"]
+                hc = HomeConfigurator(self.homeConfig)
+                hc.newLight(divisionName, lightName)
+                return Msg("Added "+lightName+" light to "+divisionName+" division").info()
+            else:
+                return Msg("Invalid uri").error()
         else:
             return Msg("Invalid number of uris").error()
+
+    def PUT(self, *uri, **params):
+        if len(uri) == 1:
+            if uri[0] == "updateLightState":
+                body = json.loads(cherrypy.request.body.read())
+                divisionName = body["divisionName"]
+                lightName = body["lightName"]
+                hc = HomeConfigurator(self.homeConfig)
+                status = hc.updateLightState(divisionName, lightName)
+                if status:
+                    return Msg("Updated "+lightName+" light state from "+divisionName+" division").info()
+                else:
+                    return Msg("Could not update light state").error()
+            else:
+                return Msg("Invalid uri").error()
+        else:
+            return Msg("Invalid number of uris").error()
+
+    def DELETE(self, *uri, **params):
+        if len(uri) == 1:
+            if uri[0] == "removeDivision":
+                divisionName = params["divisionName"]
+                hc = HomeConfigurator(self.homeConfig)
+                status = hc.removeDivision(divisionName)
+                if status:
+                    return Msg("Removed "+divisionName+" division").info()
+                else:
+                    return Msg("Could not remove divisison").error()
+            elif uri[0] == "removeLight":
+                divisionName = params["divisionName"]
+                lightName = params["lightName"]
+                hc = HomeConfigurator(self.homeConfig)
+                status = hc.removeLight(divisionName, lightName)
+                if status:
+                    return Msg("Removed "+lightName+" light from "+divisionName+" division").info()
+                else:
+                    return Msg("Could not remove light").error()
+            else:
+                return Msg("Invalid uri").error()
+        else:
+            return Msg("Invalid number of uris").error()
+
 
 class MessageBroker(object):
     """Message broker class"""
@@ -184,11 +241,12 @@ class MessageBroker(object):
 
 
 class Device(object):
-    def __init__(self,endPoints, resources,deviceId=None):
-        #check device's first occorrence
+    def __init__(self, endPoints, resources, deviceId=None):
+        # check device's first occorrence
         if deviceId is None:
             self.id = self.generateUniqueId()
-        else: self.id = deviceId
+        else:
+            self.id = deviceId
         self.endPoints = endPoints
         self.resources = resources
         self.timestamp = self.generateTimestamp()
@@ -219,20 +277,22 @@ class Device(object):
 
 
 if __name__ == '__main__':
-    #Catalog configurations
+    # Catalog configurations
     host = "192.168.1.7"
     port = 8080
     filePath = "Configuration/catalogConfiguration.json"
+    homeConfig = "Configuration/homeConfiguration.json"
     deviceCheckInterval = 2000
 
-    #cherrypy webservice configuration
+    # cherrypy webservice configuration
     conf = {
         '/': {
             'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
             'tools.sessions.on': True
         }
     }
-    cherrypy.tree.mount(HomeCatalog(host,port,filePath,deviceCheckInterval), '/', conf)
+    cherrypy.tree.mount(HomeCatalog(host, port, filePath,
+                                    deviceCheckInterval, homeConfig), '/', conf)
     cherrypy.config.update({'server.socket_host': host})
     cherrypy.config.update({'server.socket_port': port})
     cherrypy.engine.start()

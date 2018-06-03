@@ -18,7 +18,6 @@ import requests
 import json
 import os
 
-
 class MyBot(object):
     """
         TELEGRAM BOT
@@ -32,9 +31,14 @@ class MyBot(object):
         setid - Command: /setId deviceId | Ex: /setId 11-12-33-33 | Persist most used device id
         reboot - Command: /reboot deviceId | Ex: /reboot 11-12-33-33 | Update catalog's device's register
         device - Command: /device host port resources | Ex: /device localhost 8080 ["humidity"] | Add new device
-        resource - Command: /resource deviceId resourceId | Ex: /resouce 11-12-33-33 | Start device's resource
+        res - Command: /resource deviceId resourceId | Ex: /resouce 11-12-33-33 | Start/stop device's resource
         devices - Get list of devices
         resources - Command: /resources deviceId | Ex: /resources 11-12-33-33 | Get list of resources for a device
+        adddivision - Command: /adddivision divisionName | Ex: /adddivision division1 | Create new division
+        removedivision - Command: /removedivision divisionName | Ex: /removedivision division1 | Delete division
+        addlight - Command: /addlight divisionName lightName | Ex: /addlight division1 light1 | Create new light
+        removelight - Command: /removelight divisionName lightName | Ex: /removelight division1 light1 | Delete light
+        updatelightstate - Command: /updatelightstate divisionName lightName | Ex: /updateLightState division1 light1 | Turn on/off light
         help - commands list
 
         UPDATE bot list:
@@ -54,6 +58,28 @@ class MyBot(object):
         self.getId()
         self.tempId = None
 
+    def updateLightState(self, bot, update,args):
+        sendData=json.dumps({"divisionName":args[0],"lightName":args[1]})
+        r = requests.put(self.endpoint+'/updateLightState', data=sendData)
+        update.message.reply_text(r.text)
+
+    def removeLight(self, bot, update,args):
+        r = requests.delete(self.endpoint+'/removeLight?divisionName='+args[0]+'&lightName='+args[1])
+        update.message.reply_text(r.text)
+
+    def removeDivision(self, bot, update):
+        r = requests.delete(self.endpoint+'/removeDivision?divisionName='+args[0])
+        update.message.reply_text(r.text)
+
+    def addLight(self, bot, update,args):
+        sendData=json.dumps({"divisionName":args[0],"lightName":args[1]})
+        r = requests.post(self.endpoint+'/addLight', data=sendData)
+        update.message.reply_text(r.text)
+    
+    def addDivison(self, bot, update,args):
+        r = requests.post(self.endpoint+'/addDivision', data=args[0])
+        update.message.reply_text(r.text)
+
     def getId(self):
         if os.path.exists(self.filePath):
             jsonData = open(self.filePath).read()
@@ -67,7 +93,7 @@ class MyBot(object):
 
     def getInfo(self, bot, update):
         try:
-            r = requests.get(self.endpoint)
+            r = requests.get(self.endpoint+"/home")
         except requests.exceptions.RequestException as e:
             error = Msg("Unable to get info").error()
             print e
@@ -129,7 +155,7 @@ class MyBot(object):
             update.message.reply_text("New device added! Your smart home said:")
             update.message.reply_text(r.text)
 
-    def startResource(self, bot, update,args):
+    def handleResource(self, bot, update,args):
         try:
             if self.tempId is not None:
                 r = requests.get(self.endpoint+'/device?id='+self.tempId)
@@ -182,13 +208,18 @@ class MyBot(object):
 
         info - Catalog Webservice Info
 
-        device - Command: /device host port resources | Ex: /device localhost 8080 ["humidity"] | Add new device
-        resource - Command: /resource deviceId resourceId | Ex: /resouce 11-12-33-33 | Start device's resource
+        info - Catalog Webservice Info
         setid - Command: /setId deviceId | Ex: /setId 11-12-33-33 | Persist most used device id
         reboot - Command: /reboot deviceId | Ex: /reboot 11-12-33-33 | Update catalog's device's register
-
+        device - Command: /device host port resources | Ex: /device localhost 8080 ["humidity"] | Add new device
+        res - Command: /resource deviceId resourceId | Ex: /resouce 11-12-33-33 | Start/Stop device's resource
         devices - Get list of devices
         resources - Command: /resources deviceId | Ex: /resources 11-12-33-33 | Get list of resources for a device
+        adddivision - Command: /adddivision divisionName | Ex: /adddivision division1 | Create new division
+        removedivision - Command: /removedivision divisionName | Ex: /removedivision division1 | Delete division
+        addlight - Command: /addlight divisionName lightName | Ex: /addlight division1 light1 | Create new light
+        removelight - Command: /removelight divisionName lightName | Ex: /removelight division1 light1 | Delete light
+        updatelightstate - Command: /updatelightstate divisionName lightName | Ex: /updateLightState division1 light1 | Turn on/off light
         
         """
         
@@ -210,11 +241,17 @@ class MyBot(object):
         dp.add_handler(CommandHandler("devices", self.getDevices))
         dp.add_handler(CommandHandler("resources", self.getResources,pass_args=True))
 
-        dp.add_handler(CommandHandler("start", self.startResource,pass_args=True))
+        dp.add_handler(CommandHandler("res", self.handleResource,pass_args=True))
         # dp.add_handler(CommandHandler("user", self.newUser,pass_args=True))
         dp.add_handler(CommandHandler("device", self.newDevice,pass_args=True))
         dp.add_handler(CommandHandler("reboot", self.rebootDevice,pass_args=True))
         dp.add_handler(CommandHandler("setid", self.setId,pass_args=True))
+        
+        dp.add_handler(CommandHandler("adddivision", self.addDivison,pass_args=True))
+        dp.add_handler(CommandHandler("removedivision", self.removeDivision,pass_args=True))
+        dp.add_handler(CommandHandler("addlight", self.addLight,pass_args=True))
+        dp.add_handler(CommandHandler("removelight", self.removeLight,pass_args=True))
+        dp.add_handler(CommandHandler("updatelightstate", self.updateLightState,pass_args=True))
 
         # log all errors
         dp.add_error_handler(self.error)

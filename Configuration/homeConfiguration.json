@@ -1,0 +1,63 @@
+{
+    "home": "SmartHome",
+    "divisionsName": [
+        "bedroom",
+        "livingroom",
+        "hall"
+    ],
+    "divisions": {
+        "livingroom": {
+            "lights": [
+                {
+                    "state": true,
+                    "name": "couch"
+                },
+                {
+                    "state": false,
+                    "name": "table"
+                },
+                {
+                    "state": false,
+                    "name": "tv"
+                }
+            ]
+        },
+        "hall": {
+            "lights": [
+                {
+                    "state": true,
+                    "name": "hall"
+                }
+            ]
+        },
+        "bedroom": {
+            "lights": [
+                {
+                    "state": true,
+                    "name": "bed"
+                },
+                {
+                    "state": false,
+                    "name": "desk"
+                }
+            ]
+        }
+    },
+    "devices": [
+        {
+            "id": "deviceId"
+        }
+    ],
+    "beacons": {
+        "identifiers": [
+            "f5ac",
+            "a910",
+            "9644"
+        ],
+        "uuids": [
+            "849D2338-24EF-C07D-E697-9EFCE3AA54A7",
+            "43C23129-E68B-0E5B-7A7E-B1180740A743",
+            "0434AC2F-D6D4-E7A1-7EA4-3168D67E77F6"
+        ]
+    }
+}
