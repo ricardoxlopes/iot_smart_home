@@ -72,10 +72,13 @@ class SensorReader(threading.Thread):
 
     def buttonHandler(self):
             "Push button handler"
-            GPIO.setwarnings(False)
-            GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            # GPIO.setwarnings(False)
+            # GPIO.setmode(GPIO.BCM)
+            # GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
             while self.running:
+                GPIO.setwarnings(False)
                 GPIO.setmode(GPIO.BCM)
+                GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                 input_state = GPIO.input(18)
                 if input_state == False:
                     print('Button Pressed')
@@ -90,10 +93,13 @@ class SensorReader(threading.Thread):
         # Pin 23 on the board
         PIR_PIN = 23
         GPIO.setup(PIR_PIN, GPIO.IN)
-        last_motion_time = time.time()
+        # last_motion_time = time.time()
 
         while self.running:
             if GPIO.input(PIR_PIN):
+                GPIO.setwarnings(False)
+                GPIO.setmode(GPIO.BCM)
+                GPIO.setup(PIR_PIN, GPIO.IN)
                 last_motion_time = time.time()
                 sys.stdout.flush()
                 print("Motion time: "+str(last_motion_time))
@@ -114,23 +120,25 @@ class SensorReader(threading.Thread):
                     print(e)
                 else: 
                     time.sleep(2)
-        GPIO.cleanup()
+        # GPIO.cleanup()
         print("Sensor Reader Thread: "+self.threadName+" exited.")
 
     def humTempHandler(self):
         "Humidity and temperature sensor handler"
 
         # initialize GPIO
-        GPIO.setwarnings(False)
-        GPIO.setmode(GPIO.BCM)
+        # GPIO.setwarnings(False)
+        # GPIO.setmode(GPIO.BCM)
 
         # read data using pin 17
         instance = dht11.DHT11(pin=17)
 
         while(self.running):
-
+            GPIO.setwarnings(False)
+            GPIO.setmode(GPIO.BCM)
             result = instance.read()
             if result.is_valid():
+
                 temperature=str(result.temperature)
                 humidity=str(result.humidity)
                 #print data
@@ -151,7 +159,7 @@ class SensorReader(threading.Thread):
                 else: 
                     time.sleep(30)
         print("Sensor Reader Thread: "+self.threadName+" exited.")
-        GPIO.cleanup()
+        # GPIO.cleanup()
 
     def run(self):
         ###   Start of user configuration   ###   

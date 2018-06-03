@@ -18,6 +18,7 @@ import requests
 import json
 import os
 
+
 class MyBot(object):
     """
         TELEGRAM BOT
@@ -40,25 +41,25 @@ class MyBot(object):
         BOTFATHER:
         1. /setcommands
         2. choose @iotSmartHomeBot
-        3. copy list 
+        3. copy list
     """
 
     # user - Command: /user name surname email | Ex: /user name1 surname1 email1 | Add new user
     # users - Get list of users
-       
-    def __init__(self,endpoint,filePath):
+
+    def __init__(self, endpoint, filePath):
         print "Bot started..."
-        self.endpoint=endpoint
-        self.filePath=filePath
+        self.endpoint = endpoint
+        self.filePath = filePath
         self.getId()
-        self.tempId=None
+        self.tempId = None
 
     def getId(self):
         if os.path.exists(self.filePath):
             jsonData = open(self.filePath).read()
             jsonData = json.loads(jsonData)
-            self.tempId=jsonData["id"]
-            print "User's device Id read..."
+            self.tempId = jsonData["id"]
+            print "Reading device id setted..."
 
     def error(self, bot, update, error):
         """Log Errors caused by Updates."""
@@ -68,10 +69,10 @@ class MyBot(object):
         try:
             r = requests.get(self.endpoint)
         except requests.exceptions.RequestException as e:
-            error=Msg("Unable to get info").error()
+            error = Msg("Unable to get info").error()
             print e
             print error
-        else: 
+        else:
             update.message.reply_text(r.text)
 
     # def getUsers(self, bot, update):
@@ -87,14 +88,16 @@ class MyBot(object):
         try:
             r = requests.get(self.endpoint+'/devices')
         except requests.exceptions.RequestException as e:
-            error=Msg("Unable to get devices").error()
+            error = Msg("Unable to get devices").error()
             print e
             print error
         else: update.message.reply_text(r.text)
 
-    def getResources(self, bot, update,args):
+    def getResources(self, bot, update, args):
         try:
-            r = requests.get(self.endpoint+'/resources?id='+args[0])
+            if self.tempId is not None:
+                r = requests.get(self.endpoint+'/resources?id='+self.tempId)
+            else: r = requests.get(self.endpoint+'/resources?id='+args[0])
         except requests.exceptions.RequestException as e:
             error=Msg("Unable to get resources").error()
             print e
@@ -131,8 +134,12 @@ class MyBot(object):
             if self.tempId is not None:
                 r = requests.get(self.endpoint+'/device?id='+self.tempId)
             else: r = requests.get(self.endpoint+'/device?id='+args[0])
+            update.message.reply_text("DEVICE:")
+            update.message.reply_text(r.text)
             device=json.loads(r.text)["info"]
-            r = requests.get(device["endPoints"]+'/resource?id='+args[1])
+            if self.tempId is not None:
+                r = requests.get(device["endPoints"]+'/resource?id='+args[0])
+            else: r = requests.get(device["endPoints"]+'/resource?id='+args[1])
         except requests.exceptions.RequestException as e:
             error=Msg("Unable to start resource").error()
             print e
@@ -158,14 +165,14 @@ class MyBot(object):
                 with open(self.filePath, "a+") as outfile:
                     json.dump({"id":args[0]}, outfile)
                     outfile.close()
-                print "created botConfiguration.json"
+                update.message.reply_text("created botConfiguration.json")
             else:
                 jsonData = open(self.filePath).read()
                 updateData = json.loads(jsonData)
                 updateData["id"]=args[0]
             self.getId()
         except requests.exceptions.RequestException as e:
-            error=Msg("Unable to reboot device").error()
+            error=Msg("Unable to set device id").error()
             print e
             print error
         else: update.message.reply_text(r.text)
@@ -187,7 +194,7 @@ class MyBot(object):
         
         update.message.reply_text(commandsList)
   #      user - Command: /user name surname email | Ex: /user name1 surname1 email1 | Add new user
-#users - Get list of users
+# users - Get list of users
         
     def main(self):
         # Create the Updater and pass it your bot's token.
@@ -199,11 +206,11 @@ class MyBot(object):
         dp.add_handler(CommandHandler("info", self.getInfo))
         dp.add_handler(CommandHandler("help", self.getHelp))
 
-        dp.add_handler(CommandHandler("users", self.getUsers))
+        # dp.add_handler(CommandHandler("users", self.getUsers))
         dp.add_handler(CommandHandler("devices", self.getDevices))
         dp.add_handler(CommandHandler("resources", self.getResources,pass_args=True))
 
-        dp.add_handler(CommandHandler("resource", self.startResource,pass_args=True))
+        dp.add_handler(CommandHandler("start", self.startResource,pass_args=True))
         # dp.add_handler(CommandHandler("user", self.newUser,pass_args=True))
         dp.add_handler(CommandHandler("device", self.newDevice,pass_args=True))
         dp.add_handler(CommandHandler("reboot", self.rebootDevice,pass_args=True))
@@ -221,13 +228,13 @@ class MyBot(object):
         updater.idle()
 
 if __name__ == '__main__':
-    #catalog address
+    # catalog address
     address = '192.168.1.7'
-    #catalog port
+    # catalog port
     port = 8080
-    #catalog endpoint
+    # catalog endpoint
     endpoint = 'http://'+address+':'+str(port)
-    #homebot config
+    # homebot config
     filePath="Configuration/botConfiguration.json"
     bot = MyBot(endpoint,filePath)
     bot.main()

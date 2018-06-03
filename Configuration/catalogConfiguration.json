@@ -1,0 +1,1 @@
+{"catalog": {"endpoint": "192.168.56.1", "port": 8080}, "broker": {"host": "iot.eclipse.org", "port": 1883}, "devices": [{"timeStamp": "2018-06-03 02:20:21.319000", "endPoints": "http://192.168.1.4:8080/", "id": "e4224bff-e235-4f7a-b538-0f9e08a865c5", "resources": ["humidity_temperature_sensor", "motion_sensor", "button_sensor", "stereo"]}], "users": []}
