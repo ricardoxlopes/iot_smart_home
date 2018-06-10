@@ -43,11 +43,6 @@
             ]
         }
     },
-    "devices": [
-        {
-            "id": "deviceId"
-        }
-    ],
     "beacons": {
         "identifiers": [
             "f5ac",

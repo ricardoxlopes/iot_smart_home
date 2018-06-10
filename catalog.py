@@ -23,6 +23,10 @@ webservice
 -deviceCheckInterval: time interval to check devices
 """
 
+def CORS():
+    cherrypy.response.headers["Access-Control-Allow-Origin"] = "*"
+    cherrypy.response.headers["Access-Control-Allow-Methods"] = "GET, POST, HEAD, PUT, DELETE, OPTIONS"
+    cherrypy.response.headers["Access-Control-Allow-Headers"] = "Cache-Control, X-Proxy-Authorization, X-Requested-With"
 
 class HomeCatalog(object):
     exposed = True
@@ -112,8 +116,8 @@ class HomeCatalog(object):
                 return jsonData
             elif uri[0] == "beacons":
                 jsonData = open(self.homeConfig).read()
-                config = jsonData["homeConfig"]
-                return config["beacons"]
+                beacons = json.loads(jsonData)["beacons"]
+                return json.dumps(beacons)
             else:
                 return Msg("Invalid uri").error()
         else:
@@ -176,6 +180,35 @@ class HomeCatalog(object):
                 hc = HomeConfigurator(self.homeConfig)
                 hc.newLight(divisionName, lightName)
                 return Msg("Added "+lightName+" light to "+divisionName+" division").info()
+            elif uri[0] == "updateLightState":
+                body = json.loads(cherrypy.request.body.read())
+                divisionName = body["divisionName"]
+                lightName = body["lightName"]
+                hc = HomeConfigurator(self.homeConfig)
+                status = hc.updateLightState(divisionName, lightName)
+                if status:
+                    return Msg("Updated "+lightName+" light state from "+divisionName+" division").info()
+                else:
+                    return Msg("Could not update light state").error()
+            elif uri[0] == "removeDivision":
+                body = json.loads(cherrypy.request.body.read())
+                divisionName = body["divisionName"]
+                hc = HomeConfigurator(self.homeConfig)
+                status = hc.removeDivision(divisionName)
+                if status:
+                    return Msg("Removed "+divisionName+" division").info()
+                else:
+                    return Msg("Could not remove divisison").error()
+            elif uri[0] == "removeLight":
+                body = json.loads(cherrypy.request.body.read())
+                divisionName = body["divisionName"]
+                lightName = body["lightName"]
+                hc = HomeConfigurator(self.homeConfig)
+                status = hc.removeLight(divisionName, lightName)
+                if status:
+                    return Msg("Removed "+lightName+" light from "+divisionName+" division").info()
+                else:
+                    return Msg("Could not remove light").error()
             else:
                 return Msg("Invalid uri").error()
         else:
@@ -278,17 +311,20 @@ class Device(object):
 
 if __name__ == '__main__':
     # Catalog configurations
-    host = "192.168.1.7"
+    host = "192.168.1.3"
     port = 8080
     filePath = "Configuration/catalogConfiguration.json"
     homeConfig = "Configuration/homeConfiguration.json"
     deviceCheckInterval = 2000
 
+    cherrypy.tools.CORS = cherrypy.Tool("before_handler", CORS) # This MUST run before every request sent
+
     # cherrypy webservice configuration
     conf = {
         '/': {
             'request.dispatch': cherrypy.dispatch.MethodDispatcher(),
-            'tools.sessions.on': True
+            'tools.sessions.on': True,
+            'tools.CORS.on': True
         }
     }
     cherrypy.tree.mount(HomeCatalog(host, port, filePath,
