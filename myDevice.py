@@ -37,36 +37,6 @@ pin 2 5v- motion
 
 """
 
-
-class MyPublisher:
-    def __init__(self, clientID, host, port, topic):
-        self.clientID = clientID
-        self.host = host
-        self.port = port
-        self.topic = topic
-
-        # create an instance of paho.mqtt.client
-        self._paho_mqtt = PahoMQTT.Client(self.clientID, False)
-        # register the callback
-        self._paho_mqtt.on_connect = self.myOnConnect
-
-    def start(self):
-        # manage connection to broker
-        self._paho_mqtt.connect(host, port)  # 'iot.eclipse.org', 1883)
-        self._paho_mqtt.loop_start()
-
-    def stop(self):
-        self._paho_mqtt.loop_stop()
-        self._paho_mqtt.disconnect()
-
-    def myPublish(self, topic, message):
-        # publish a message with a certain topic
-        self. _paho_mqtt.publish(topic, message, 2)
-
-    def myOnConnect(self, paho_mqtt, userdata, flags, rc):
-        print ("Connected to message broker with result code: "+str(rc))
-
-
 class MyDevice(object):
     exposed = True
 
@@ -107,7 +77,6 @@ class MyDevice(object):
     def getBroker(self):
         "Get broker from catalog"
         try:
-            print self.catalogEndpoint+'/broker'
             r = requests.get(self.catalogEndpoint+'/broker')
         except requests.exceptions.RequestException as e:
             error = Msg("Unable to get broket").error()
@@ -126,8 +95,9 @@ class MyDevice(object):
 
         if os.path.exists(self.filePath):
             print "Read device from persistence..."
-            device = open(self.filePath).read()
-            # device = json.loads(jsonData)
+            jsonData = open(self.filePath).read()
+            jsonData = json.loads(jsonData)
+            device = json.dumps(jsonData["device"])
         else: device = json.dumps({"endPoints": self.endpoint,
                              "resources": self.resources})
         # user = json.dumps({"endpoint": self.endpoint,
@@ -191,15 +161,30 @@ class MyDevice(object):
         return Msg("Stopped resource "+resourceId).info()
 
 if __name__ == '__main__':
-    # My Device settings
-    host = "192.168.1.4"
-    port = 8080
-    endpoint = "http://"+host+":"+str(port)+"/"
-    resources = ["humidity_temperature_sensor",
-                 "motion_sensor", "button_sensor", "stereo"]
+    # # My Device settings
+    # host = "192.168.1.4"
+    # port = 8080
+    # endpoint = "http://"+host+":"+str(port)+"/"
+    # resources = ["humidity_temperature_sensor",
+    #              "motion_sensor", "button_sensor", "stereo"]
     filePath = "Configuration/deviceConfiguration.json"
+
+    if os.path.exists(filePath):
+        jsonData = open(filePath).read()
+        jsonData = json.loads(jsonData)
+        device = jsonData["device"]
+        endpoint = device["endPoints"]
+        resources = device["resources"]
+        catalogEndpoint = jsonData["catalogEndpoint"]
+        newstr = endpoint.replace("/","")
+        newstr=newstr.split(":")
+        host = newstr[1]
+        port = int(newstr[2])
+        print "Reading device config..."
+    else: print "ERROR: Missing "+filePath+"!"
+
     # Catalog endpoint
-    catalogEndpoint = "http://192.168.1.7:8080"
+    #  catalogEndpoint = "http://192.168.1.6:8080"
     conf = {
         '/': {
             'request.dispatch': cherrypy.dispatch.MethodDispatcher(),

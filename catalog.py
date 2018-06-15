@@ -7,7 +7,7 @@ import os
 import numpy as np
 from dateutil import parser
 import uuid
-from subscriber import MySubscriber
+# from subscriber import MySubscriber
 from deviceTimeChecker import DeviceTimeChecker
 from user import User
 import socket
@@ -49,8 +49,8 @@ class HomeCatalog(object):
         # deviceChecker = DeviceTimeChecker("deviceChecker1",self.deviceCheckInterval,self.filePath)
         # deviceChecker.check()
         # MQTT subscriber
-        mqttSubscriber = MySubscriber("subscriber1")
-        mqttSubscriber.start()
+        # mqttSubscriber = MySubscriber("subscriber1")
+        # mqttSubscriber.start()
 
     def initialContent(self, host, port):
         host = socket.gethostbyname(socket.gethostname())
@@ -93,15 +93,15 @@ class HomeCatalog(object):
                                 resourcesToPrint += ", "+resource
                         return Msg({"resources": "["+resourcesToPrint+"]"}).info()
                 return Msg("Resource not available").error()
-            # elif uri[0] == "device":
-            #     deviceId = params["id"]
-            #     # read from config file
-            #     jsonData = open(self.filePath).read()
-            #     devices = json.loads(jsonData)["devices"]
-            #     for device in devices:
-            #         if device["id"] == deviceId:
-            #             return Msg(device).info()
-            #     return Msg("No device with id="+deviceId).error()
+            elif uri[0] == "device":
+                deviceId = params["id"]
+                # read from config file
+                jsonData = open(self.filePath).read()
+                devices = json.loads(jsonData)["devices"]
+                for device in devices:
+                    if device["id"] == deviceId:
+                        return Msg(device).info()
+                return Msg("No device with id="+deviceId).error()
             elif uri[0] == "user":
                 userId = params["id"]
                 # read from config file
@@ -130,7 +130,6 @@ class HomeCatalog(object):
                 body = json.loads(cherrypy.request.body.read())
                 endpoint = body["endPoints"]
                 resources = body["resources"]
-                timestamp = body["timeStamp"]
                 # check device's first occorrence
                 if "id" in body:
                     newDevice = Device(endpoint, resources, body["id"])
@@ -141,9 +140,10 @@ class HomeCatalog(object):
                 jsonData = open(self.filePath).read()
                 updateData = json.loads(jsonData)
                 devices = updateData["devices"]
-                for device in devices:
-                    if device["id"] == body["id"]:
-                        devices.remove(device)
+                if len(devices) > 0:
+                    for device in devices:
+                        if device["id"] == body["id"]:
+                            devices.remove(device)
                 updateData["devices"].append(newDevice.getInfo())
                 # update data
                 with open(self.filePath, "w") as outfile:
@@ -311,11 +311,18 @@ class Device(object):
 
 if __name__ == '__main__':
     # Catalog configurations
-    host = "192.168.1.3"
-    port = 8080
     filePath = "Configuration/catalogConfiguration.json"
     homeConfig = "Configuration/homeConfiguration.json"
-    deviceCheckInterval = 2000
+    
+    if os.path.exists(filePath):
+        jsonData = open(filePath).read()
+        jsonData = json.loads(jsonData)
+        catalog = jsonData["catalog"]
+        host = str(catalog["host"])
+        port = catalog["port"]
+        deviceCheckInterval = catalog["deviceCheckInterval"]
+        print "Reading catalog config..."
+    else: print "ERROR: Missing "+filePath+"!"
 
     cherrypy.tools.CORS = cherrypy.Tool("before_handler", CORS) # This MUST run before every request sent
 

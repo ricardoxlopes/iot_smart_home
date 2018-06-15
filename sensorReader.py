@@ -17,6 +17,7 @@ import os
 from os import listdir
 from os.path import isfile, join
 from random import shuffle
+from publisher import MyPublisher
 
 class SensorReader(threading.Thread):
 
@@ -56,10 +57,8 @@ class SensorReader(threading.Thread):
                 print(music)
                 pygame.mixer.music.queue(music)
             else: continue
-        
-        #TODO alert when playlist ends, to display state in ionic app
-        #TODO alert when music is changed
-        #TODO music is not ending
+        pygame.mixer.music.pause()
+        pygame.mixer.music.stop()
 
     def ledAlarm(self):
         GPIO.setwarnings(False)
@@ -75,14 +74,17 @@ class SensorReader(threading.Thread):
             # GPIO.setwarnings(False)
             # GPIO.setmode(GPIO.BCM)
             # GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            mqttPublisher = MyPublisher("publisher1",'iot.eclipse.org', 1883,"/my/panic/button")
+            mqttPublisher.start()
+
             while self.running:
                 GPIO.setwarnings(False)
                 GPIO.setmode(GPIO.BCM)
                 GPIO.setup(18, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                 input_state = GPIO.input(18)
                 if input_state == False:
+                    mqttPublisher.myPublish("/my/panic/button","Panic button pressed!")
                     print('Panic button pressed!')
-                    
                     time.sleep(0.2)
             print("Sensor Reader Thread: "+self.threadName+" exited.")
 

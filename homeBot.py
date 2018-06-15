@@ -17,6 +17,7 @@ import string
 import requests
 import json
 import os
+import paho.mqtt.client as PahoMQTT
 
 class MyBot(object):
     """
@@ -39,6 +40,7 @@ class MyBot(object):
         addlight - Command: /addlight divisionName lightName | Ex: /addlight division1 light1 | Create new light
         removelight - Command: /removelight divisionName lightName | Ex: /removelight division1 light1 | Delete light
         updatelightstate - Command: /updatelightstate divisionName lightName | Ex: /updateLightState division1 light1 | Turn on/off light
+        panic - Command: /panic | Turn on/off panic service
         help - commands list
 
         UPDATE bot list:
@@ -51,12 +53,16 @@ class MyBot(object):
     # user - Command: /user name surname email | Ex: /user name1 surname1 email1 | Add new user
     # users - Get list of users
 
-    def __init__(self, endpoint, filePath):
+    def __init__(self, filePath):
         print "Bot started..."
-        self.endpoint = endpoint
         self.filePath = filePath
-        self.getId()
         self.tempId = None
+        self.endpoint = None
+        self.isPanic = False
+        self.getEndpoint()
+        self.getId()
+        # mqttSubscriber = MySubscriber("subscriberBot",'iot.eclipse.org', 1883,"/my/panic/button")
+        # mqttSubscriber.start()
 
     def updateLightState(self, bot, update,args):
         sendData=json.dumps({"divisionName":args[0],"lightName":args[1]})
@@ -111,6 +117,13 @@ class MyBot(object):
             jsonData = json.loads(jsonData)
             self.tempId = jsonData["id"]
             print "Reading device id setted..."
+
+    def getEndpoint(self):
+        if os.path.exists(self.filePath):
+            jsonData = open(self.filePath).read()
+            jsonData = json.loads(jsonData)
+            self.endpoint = jsonData["catalogEndpoint"]
+            print "Reading catalog endpoint..."
 
     def error(self, bot, update, error):
         """Log Errors caused by Updates."""
@@ -213,10 +226,7 @@ class MyBot(object):
     def setId(self, bot, update,args):
         try:
             if not os.path.exists(self.filePath):
-                with open(self.filePath, "a+") as outfile:
-                    json.dump({"id":args[0]}, outfile)
-                    outfile.close()
-                update.message.reply_text("created botConfiguration.json")
+                update.message.reply_text("Missing botConfiguration.json")
             else:
                 jsonData = open(self.filePath).read()
                 updateData = json.loads(jsonData)
@@ -227,11 +237,37 @@ class MyBot(object):
             print e
             print error
         else: update.message.reply_text(r.text)
+    
+    def myOnConnect (self, paho_mqtt, userdata, flags, rc):
+        print "Connected to message broker with result code: "+str(rc)
+
+    def myOnMessage(self, paho_mqtt , userdata, msg):
+        self.update.message.reply_text({"PANIC ALERT":"Calling the authorities..."})
+
+    def panic(self, bot, update):
+        self.update=update
+        if not self.isPanic:
+            self.isPanic=True
+            update.message.reply_text({"info":"Panic service started"})
+            # create an instance of paho.mqtt.client
+            self._paho_mqtt = PahoMQTT.Client("homeBot", False) 
+            # register the callback
+            self._paho_mqtt.on_connect = self.myOnConnect
+            self._paho_mqtt.on_message = self.myOnMessage 
+            # update.message.reply_text({"PANIC ALERT":"Calling the authorities..."})
+            self._paho_mqtt.connect('iot.eclipse.org', 1883)
+            self._paho_mqtt.loop_start()
+            # subscribe for a topic
+            self._paho_mqtt.subscribe("/my/panic/button", 2)
+        else:
+            update.message.reply_text({"info":"Panic service stopped"})
+            self.isPanic=False
+            self._paho_mqtt.unsubscribe("/my/panic/button")
+            self._paho_mqtt.loop_stop()
+            self._paho_mqtt.disconnect()
 
     def getHelp(self, bot, update):
         commandsList="""BOT COMMAND LIST:
-
-        info - Catalog Webservice Info
 
         info - Catalog Webservice Info
         setid - Command: /setId deviceId | Ex: /setId 11-12-33-33 | Persist most used device id
@@ -245,7 +281,7 @@ class MyBot(object):
         addlight - Command: /addlight divisionName lightName | Ex: /addlight division1 light1 | Create new light
         removelight - Command: /removelight divisionName lightName | Ex: /removelight division1 light1 | Delete light
         updatelightstate - Command: /updatelightstate divisionName lightName | Ex: /updateLightState division1 light1 | Turn on/off light
-        
+        panic - Command: /panic | Turn on/off panic service
         """
         
         update.message.reply_text(commandsList)
@@ -278,25 +314,26 @@ class MyBot(object):
         dp.add_handler(CommandHandler("removelight", self.removeLight,pass_args=True))
         dp.add_handler(CommandHandler("updatelightstate", self.updateLightState,pass_args=True))
 
+        dp.add_handler(CommandHandler("panic", self.panic))
+
         # log all errors
         dp.add_error_handler(self.error)
 
         # Start the Bot
         updater.start_polling()
-
         # Run the bot until you press Ctrl-C or the process receives SIGINT,
         # SIGTERM or SIGABRT. This should be used most of the time, since
         # start_polling() is non-blocking and will stop the bot gracefully.
         updater.idle()
 
 if __name__ == '__main__':
-    # catalog address
-    address = '192.168.1.7'
-    # catalog port
-    port = 8080
-    # catalog endpoint
-    endpoint = 'http://'+address+':'+str(port)
+    # # catalog address
+    # address = '192.168.1.6'
+    # # catalog port
+    # port = 8080
+    # # catalog endpoint
+    # endpoint = 'http://'+address+':'+str(port)
     # homebot config
     filePath="Configuration/botConfiguration.json"
-    bot = MyBot(endpoint,filePath)
+    bot = MyBot(filePath)
     bot.main()
