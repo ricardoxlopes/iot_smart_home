@@ -6,6 +6,7 @@ import cherrypy
 import socket
 from message import Msg
 import os
+import datetime
 
 """
 CONFIGURATIONS
@@ -97,11 +98,11 @@ class MyDevice(object):
             print "Read device from persistence..."
             jsonData = open(self.filePath).read()
             jsonData = json.loads(jsonData)
-            device = json.dumps(jsonData["device"])
+            device = jsonData["device"]
+            device["timeStamp"]=str(datetime.datetime.now())
+            device = json.dumps(device)
         else: device = json.dumps({"endPoints": self.endpoint,
                              "resources": self.resources})
-        # user = json.dumps({"endpoint": self.endpoint,
-            #    "resources": self.resources})
         try:
             r = requests.post(self.catalogEndpoint +
                               '/addDevice', data=device)
@@ -161,12 +162,6 @@ class MyDevice(object):
         return Msg("Stopped resource "+resourceId).info()
 
 if __name__ == '__main__':
-    # # My Device settings
-    # host = "192.168.1.4"
-    # port = 8080
-    # endpoint = "http://"+host+":"+str(port)+"/"
-    # resources = ["humidity_temperature_sensor",
-    #              "motion_sensor", "button_sensor", "stereo"]
     filePath = "Configuration/deviceConfiguration.json"
 
     if os.path.exists(filePath):
@@ -197,5 +192,3 @@ if __name__ == '__main__':
     cherrypy.config.update({'server.socket_port': port})
     cherrypy.engine.start()
     cherrypy.engine.block()
-
-    # TODO read broker info and start sending messages

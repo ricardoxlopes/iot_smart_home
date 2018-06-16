@@ -2,7 +2,6 @@ import os
 import json
 import string
 
-
 class HomeConfigurator(object):
     """Home Configurator"""
 

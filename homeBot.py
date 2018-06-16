@@ -61,8 +61,6 @@ class MyBot(object):
         self.isPanic = False
         self.getEndpoint()
         self.getId()
-        # mqttSubscriber = MySubscriber("subscriberBot",'iot.eclipse.org', 1883,"/my/panic/button")
-        # mqttSubscriber.start()
 
     def updateLightState(self, bot, update,args):
         sendData=json.dumps({"divisionName":args[0],"lightName":args[1]})
@@ -327,12 +325,6 @@ class MyBot(object):
         updater.idle()
 
 if __name__ == '__main__':
-    # # catalog address
-    # address = '192.168.1.6'
-    # # catalog port
-    # port = 8080
-    # # catalog endpoint
-    # endpoint = 'http://'+address+':'+str(port)
     # homebot config
     filePath="Configuration/botConfiguration.json"
     bot = MyBot(filePath)
